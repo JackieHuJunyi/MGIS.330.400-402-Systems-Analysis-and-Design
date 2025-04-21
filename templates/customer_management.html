@@ -1,0 +1,255 @@
+{% extends "layout.html" %}
+{% block page_title %}Customer Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- 顶部操作栏 -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="input-group w-50">
+      <input id="searchInput" type="text" class="form-control" placeholder="Search by name, phone, or email">
+      <button id="searchBtn" class="btn btn-outline-secondary" type="button">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+    <div class="d-flex align-items-center flex-wrap gap-2">
+      <select id="levelFilter" class="form-select form-select-sm w-auto">
+        <option value="all">All Levels</option>
+        <option value="Gold">Gold</option>
+        <option value="Silver">Silver</option>
+        <option value="Bronze">Bronze</option>
+        <option value="Regular">Regular</option>
+      </select>
+    
+      <button id="clearFilters" class="btn btn-sm btn-outline-secondary">Clear</button>
+    
+      <button id="exportExcelBtn" class="btn btn-sm btn-outline-success">
+        <i class="bi bi-file-earmark-excel"></i> Export Excel
+      </button>
+    
+      <button class="btn btn-sm btn-primary ms-auto" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+        <i class="bi bi-person-plus"></i> Add Customer
+      </button>
+    </div>    
+  </div>
+
+  <!-- 客户列表表格 -->
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Member ID</th>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>Email</th>
+          <th>Level</th>
+          <th>Registered</th>
+          <th>Birth Date</th>
+          <th>Last Visit</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="customerTableBody">
+        <!-- JS 注入行 -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 分页 -->
+  <nav aria-label="Customer list pagination">
+    <ul class="pagination justify-content-center" id="pagination"></ul>
+  </nav>
+</div>
+
+<!-- 新增客户 Modal -->
+<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addCustomerModalLabel">Add Customer</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="customerForm">
+          <div class="mb-3">
+            <label class="form-label">Name</label>
+            <input id="customerName" type="text" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Phone</label>
+            <input id="customerPhone" type="tel" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input id="customerEmail" type="email" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Membership Level</label>
+            <select id="memberLevel" class="form-select" required>
+              <option value="">Choose…</option>
+              <option value="Gold">Gold</option>
+              <option value="Silver">Silver</option>
+              <option value="Bronze">Bronze</option>
+              <option value="Regular">Regular</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Birth Date</label>
+            <input id="birthdate" type="date" class="form-control" required>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button id="saveCustomerBtn" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const apiUrl = '/api/customers';
+  let customers = [], currentPage = 1, pageSize = 10;
+
+  const searchInput  = document.getElementById('searchInput');
+  const searchBtn    = document.getElementById('searchBtn');
+  const levelFilter  = document.getElementById('levelFilter');
+  const clearFilters = document.getElementById('clearFilters');
+  const tableBody    = document.getElementById('customerTableBody');
+  const pagination   = document.getElementById('pagination');
+
+  // 获取并渲染
+  function fetchCustomers() {
+    const params = new URLSearchParams();
+    if (searchInput.value.trim()) params.set('search', searchInput.value.trim());
+    if (levelFilter.value !== 'all') params.set('mem_level', levelFilter.value);
+
+    fetch(`${apiUrl}?${params}`)
+      .then(r => r.json())
+      .then(data => {
+        customers = data;
+        currentPage = 1;
+        renderTable();
+        renderPagination();
+      });
+  }
+
+  // 渲染表格
+  function renderTable() {
+    tableBody.innerHTML = '';
+    const start = (currentPage-1)*pageSize;
+    const end   = start + pageSize;
+    const subset = customers.slice(start, end);
+    const ninetyAgo = Date.now() - 90*24*3600*1000;
+
+    subset.forEach(c => {
+      const lv = new Date(c.last_visit).getTime() >= ninetyAgo ? 'Active' : 'Inactive';
+      tableBody.insertAdjacentHTML('beforeend', `
+        <tr>
+          <td>${c.CustomerID}</td>
+          <td>${c.Name}</td>
+          <td>${c.PhoneNum}</td>
+          <td>${c.Email}</td>
+          <td>${c.MemLevel}</td>
+          <td>${new Date(c.RegDate).toLocaleDateString()}</td>
+          <td>${c.BirthDate ? new Date(c.BirthDate).toLocaleDateString() : ''}</td>
+          <td>${new Date(c.last_visit).toLocaleDateString()}</td>
+          <td><span class="badge ${lv==='Active'?'bg-success':'bg-secondary'}">${lv}</span></td>
+        </tr>
+      `);
+    });
+
+    if (!subset.length) {
+      tableBody.innerHTML = '<tr><td colspan="9" class="text-center py-3">No customers found.</td></tr>';
+    }
+  }
+
+  // 渲染分页
+  function renderPagination() {
+    pagination.innerHTML = '';
+    const pageCount = Math.ceil(customers.length/pageSize);
+    if (pageCount < 2) return;
+    const makeItem = (p,label,dis,act) =>
+      `<li class="page-item ${dis?'disabled':''} ${act?'active':''}">
+         <a class="page-link" href="#" data-page="${p}">${label}</a>
+       </li>`;
+
+    pagination.insertAdjacentHTML('beforeend', makeItem(currentPage-1,'Prev', currentPage===1,false));
+    for (let p=1; p<=pageCount; p++) {
+      pagination.insertAdjacentHTML('beforeend', makeItem(p,p,false,p===currentPage));
+    }
+    pagination.insertAdjacentHTML('beforeend', makeItem(currentPage+1,'Next', currentPage===pageCount,false));
+
+    pagination.querySelectorAll('.page-link').forEach(a=>{
+      a.onclick = e=>{
+        e.preventDefault();
+        const p = +e.target.dataset.page;
+        if (p>=1 && p<=pageCount) { currentPage=p; renderTable(); renderPagination(); }
+      };
+    });
+  }
+
+  // 添加客户
+  document.getElementById('saveCustomerBtn').addEventListener('click', ()=>{
+    const payload = {
+      Name:     document.getElementById('customerName').value.trim(),
+      PhoneNum: document.getElementById('customerPhone').value.trim(),
+      Email:    document.getElementById('customerEmail').value.trim(),
+      MemLevel: document.getElementById('memberLevel').value,
+      BirthDate:document.getElementById('birthdate').value
+    };
+    fetch(apiUrl, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    })
+    .then(r=>{
+      if(!r.ok) throw new Error('Validation failed');
+      return r.json();
+    })
+    .then(()=>{
+      bootstrap.Modal.getInstance(document.getElementById('addCustomerModal')).hide();
+      document.getElementById('customerForm').reset();
+      fetchCustomers();
+    })
+    .catch(err => alert('Add failed: '+err));
+  });
+
+  // 事件绑定
+  searchBtn.onclick     = fetchCustomers;
+  searchInput.onkeyup   = e=> e.key==='Enter' && fetchCustomers();
+  levelFilter.onchange  = fetchCustomers;
+  clearFilters.onclick  = ()=>{ searchInput.value=''; levelFilter.value='all'; fetchCustomers(); };
+
+  // 初始加载
+  fetchCustomers();
+
+  // ✅ 导出 Excel
+  document.getElementById('exportExcelBtn').addEventListener('click', () => {
+    if (!customers.length) {
+      alert('No customer data to export.');
+      return;
+    }
+
+    const dataToExport = customers.map(c => ({
+      'Member ID': c.CustomerID,
+      'Name': c.Name,
+      'Phone': c.PhoneNum,
+      'Email': c.Email,
+      'Level': c.MemLevel,
+      'Registered': new Date(c.RegDate).toLocaleDateString(),
+      'Birth Date': c.BirthDate ? new Date(c.BirthDate).toLocaleDateString() : '',
+      'Last Visit': new Date(c.last_visit).toLocaleDateString(),
+      'Status': new Date(c.last_visit).getTime() >= Date.now() - 90*24*3600*1000 ? 'Active' : 'Inactive'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Customers');
+    XLSX.writeFile(workbook, 'customer_list.xlsx');
+  });
+});
+</script>
+{% endblock %}

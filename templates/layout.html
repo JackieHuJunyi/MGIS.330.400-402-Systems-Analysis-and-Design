@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mountain Pizza Management System - {% block page_title %}Home{% endblock %}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Popper.js and Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
+    <!-- Chart.js -->
+    <link href="/static/css/styles.css" rel="stylesheet"> {% block extra_css %}{% endblock %}
+    <!-- SheetJS 库（CDN) 实现导出当前客户数据为 .xlsx 文件。 -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+</head>
+<style>
+    /* optional: 如果想再微调左右 padding */
+    .content-area { /* 覆盖默认左右 padding（视需要） */
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
+    }
+  </style>
+<body>
+    <div class="container-fluid px-0">
+        <div class="row g-0">
+            <!-- Side Navigation -->
+            <div class="col-md-2 d-none d-md-block sidebar">
+                <div class="logo-container text-center py-4">
+                    <h4 class="text-white mb-0">Kaoshan Pizza</h4>
+                    <p class="text-white-50 small">Management System</p>
+                </div>
+                <hr class="border-light">
+                <div class="nav-menu">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a href="{{ url_for('dashboard_bp.sales_dashboard') }}" class="nav-link" data-page="dashboard">
+                                <i class="bi bi-speedometer2 me-2"></i> Sales Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/inventory" class="nav-link" data-page="inventory">
+                                <i class="bi bi-boxes me-2"></i> Inventory Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/orders/management" class="nav-link" data-page="orders_management">
+                                <i class="bi bi-bag-check me-2"></i> Order Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/staff/management" class="nav-link" data-page="staff_management">
+                                <i class="bi bi-people-fill me-2"></i> Staff Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/products" class="nav-link" data-page="product_management">
+                                <i class="bi bi-box-seam me-2"></i> Product Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/vendors/management" class="nav-link" data-page="vendor_management">
+                                <i class="bi bi-shop me-2"></i> Vendor Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/customer_insights" class="nav-link" data-page="customer_insights">
+                                <i class="bi bi-people me-2"></i> Customer Insights
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/customers/management" class="nav-link" data-page="customer_management">
+                                <i class="bi bi-person-badge me-2"></i> Customer Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/finance">
+                                <i class="bi bi-cash-stack me-2"></i>
+                                <span>Financial Reports</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/finance/senior-discounts" class="nav-link" data-page="senior_welfare">
+                              <i class="bi bi-emoji-smile me-2"></i> Senior Welfare
+                            </a>
+                          </li>                 
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="col-md-10 content-area">
+                <!-- Top Navigation Bar -->
+                <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm py-2">
+                    <div class="container-fluid">
+                        <button class="btn menu-toggle d-md-none" type="button" aria-label="Expand Menu">
+                            <i class="bi bi-list"></i>
+                        </button>
+                        <div class="page-title d-none d-sm-block">{% block header_title %}{% block page_header %}{% endblock %}{% endblock %}</div>
+                        <ul class="navbar-nav ms-auto">
+                            <!-- <li class="nav-item dropdown me-3">
+                                <a class="nav-link" href="#" id="alertsDropdown" role="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-bell"></i>
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">3</span>
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-end notifications-dropdown">
+                                    <div class="dropdown-header">Notifications (3)</div>
+                                    <a class="dropdown-item" href="#">
+                                        <div class="notification-item">
+                                            <div class="icon bg-warning"><i class="bi bi-exclamation-triangle"></i></div>
+                                            <div class="content">
+                                                <div class="title">Low Mozzarella Cheese Stock</div>
+                                                <div class="info">2 days of stock remaining</div>
+                                                <div class="time">10 minutes ago</div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a class="dropdown-item" href="#">
+                                        <div class="notification-item">
+                                            <div class="icon bg-info"><i class="bi bi-people"></i></div>
+                                            <div class="content">
+                                                <div class="title">New Member Registrations</div>
+                                                <div class="info">15 new members today</div>
+                                                <div class="time">1 hour ago</div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a class="dropdown-item" href="#">
+                                        <div class="notification-item">
+                                            <div class="icon bg-success"><i class="bi bi-cash"></i></div>
+                                            <div class="content">
+                                                <div class="title">Daily Sales Target Achieved</div>
+                                                <div class="info">Today's sales reached 120% of target</div>
+                                                <div class="time">3 hours ago</div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <div class="dropdown-footer">
+                                        <a href="#">View All</a>
+                                    </div>
+                                </div>
+                            </li> -->
+                            <!-- <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                                    <class="avatar rounded-circle alt="Admin Avatar"> <span class="d-none d-md-inline-block ms-1">Administrator</span>
+                                </a>
+                                <!-- <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i> Profile</a></li>
+                                    <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i> Account Settings</a></li>
+                                    <li>
+                                        <hr class="dropdown-divider">
+                                    </li>
+                                    <li><a class="dropdown-item" href="#"><i class="bi bi-box-arrow-right me-2"></i> Logout</a></li>
+                                </ul> -->
+                            </li> 
+                        </ul>
+                    </div>
+                </nav>
+
+                <!-- Main Content -->
+                <div class="main-content p-4">
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Message Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <!-- Toasts will be dynamically added here -->
+    </div>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Main JS File -->
+    <script src="/static/js/main.js"></script>
+    <!-- Mobile Menu Handling -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          const currentPath = window.location.pathname;
+          const navLinks    = Array.from(document.querySelectorAll('.nav-link'));
+          let matchedExact = false;
+      
+          // 先找完全相等的 href
+          navLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            if (href === currentPath) {
+              link.classList.add('active');
+              matchedExact = true;
+            }
+          });
+      
+          // 如果没有完全匹配，再找前缀匹配（fallback）
+          if (!matchedExact) {
+            navLinks.forEach(link => {
+              const href = link.getAttribute('href');
+              if (href !== '/' && currentPath.startsWith(href)) {
+                link.classList.add('active');
+                return;  // 找到第一条就够了
+              }
+            });
+          }
+        });
+      </script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

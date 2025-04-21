@@ -1,0 +1,459 @@
+{% extends "layout.html" %}
+{% block page_title %}Staff Management{% endblock %}
+
+{% block content %}
+<div class="position-relative">
+  <!-- loading overlay -->
+  <div id="loadingOverlay"
+       class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white">
+    <div class="spinner-border"></div>
+  </div>
+
+  <div class="container-fluid">
+    <!-- Staff List -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i> Staff List</h5>
+            <div>
+              <button class="btn btn-light btn-sm"
+                      onclick="openStaffModal('add',null)"
+                      data-bs-toggle="modal"
+                      data-bs-target="#staffModal">
+                <i class="bi bi-plus-circle me-1"></i> Add Staff
+              </button>
+              <button class="btn btn-light btn-sm ms-2" onclick="exportStaff()">
+                <i class="bi bi-download me-1"></i> Export
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead>
+                  <tr>
+                    <th>Staff ID</th><th>Name</th><th>Position</th><th>Department</th>
+                    <th>Email</th><th>Phone</th><th>Join Date</th><th>Performance</th><th>Status</th><th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="staffTableBody">
+                  <!-- filled by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row">
+      <div class="col-md-6 mb-4">
+        <div class="card">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="bi bi-bar-chart-line me-2"></i> Staff Performance</h5>
+          </div>
+          <div class="card-body">
+            <div class="chart-container" style="height:250px">
+              <canvas id="staffPerformanceChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 mb-4">
+        <div class="card">
+          <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i> Staff Distribution</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <!-- 改成 6 / 6 列 -->
+              <div class="col-md-6">
+                <div class="chart-container" style="height:250px; width:100%;">
+                  <canvas id="staffDistributionChart"></canvas>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <table class="table table-sm">
+                  <thead><tr><th>Department</th><th>Total Staff</th></tr></thead>
+                  <tbody id="distributionTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- View Details Modal -->
+<div class="modal fade" id="viewStaffModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Staff Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Full Name</label>
+              <input type="text" id="viewName" class="form-control" disabled>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email</label>
+              <input type="email" id="viewEmail" class="form-control" disabled>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Phone</label>
+              <input type="text" id="viewPhone" class="form-control" disabled>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Position</label>
+              <input type="text" id="viewPosition" class="form-control" disabled>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Department</label>
+              <input type="text" id="viewDepartment" class="form-control" disabled>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Join Date</label>
+              <input type="text" id="viewJoinDate" class="form-control" disabled>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Status</label>
+              <input type="text" id="viewStatus" class="form-control" disabled>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Performance</label>
+              <input type="text" id="viewPerformance" class="form-control" disabled>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Address</label>
+            <textarea id="viewAddress" class="form-control" rows="2" disabled></textarea>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal fade" id="staffModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add/Edit Staff Member</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="staffForm">
+          <input type="hidden" id="staffId">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Full Name</label>
+              <input type="text" class="form-control" id="staffName" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" id="staffEmail" required>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Phone</label>
+              <input type="tel" class="form-control" id="staffPhone" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Position</label>
+              <select class="form-select" id="staffPosition" required>
+                <option value="">Choose…</option>
+                <option>Head Chef</option><option>Pizza Maker</option>
+                <option>Cashier</option><option>Delivery Staff</option>
+                <option>Store Manager</option><option>Cleaner</option>
+                <option>Waiter/Waitress</option>
+              </select>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Department</label>
+              <select class="form-select" id="staffDepartment" required>
+                <option value="">Choose…</option>
+                <option>Kitchen</option><option>Front Desk</option>
+                <option>Delivery</option><option>Management</option>
+                <option>Cleaning</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Join Date</label>
+              <input type="date" class="form-control" id="staffJoinDate" required>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Status</label>
+              <select class="form-select" id="staffStatus">
+                <option>Active</option><option>On Leave</option><option>Inactive</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Address</label>
+              <textarea class="form-control" id="staffAddress" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Performance</label>
+              <input type="number" class="form-control" id="staffPerformance" placeholder="Enter score">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" id="saveStaffBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let perfChart, distChart;
+const palette = [
+  'rgba(255, 99, 132, 0.7)',
+  'rgba(54, 162, 235, 0.7)',
+  'rgba(255, 206, 86, 0.7)',
+  'rgba(75, 192, 192, 0.7)',
+  'rgba(153, 102, 255, 0.7)',
+  'rgba(255, 159, 64, 0.7)'
+];
+
+// build staff table
+async function loadStaffList() {
+  const res = await fetch('/api/staff'),
+        list = await res.json(),
+        tbody = document.getElementById('staffTableBody');
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center">No staff records found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(s => `
+    <tr>
+      <td>${s.staff_code}</td>
+      <td>${s.name}</td>
+      <td>${s.position||''}</td>
+      <td>${s.department||''}</td>
+      <td>${s.email||''}</td>
+      <td>${s.phone||''}</td>
+      <td>${s.join_date||''}</td>
+      <td>${s.performance}</td>
+      <td>${
+        s.status==='Active'   ? '<span class="badge bg-success">Active</span>' :
+        s.status==='On Leave' ? '<span class="badge bg-warning text-dark">On Leave</span>' :
+                                `<span class="badge bg-secondary">${s.status}</span>`
+      }</td>
+      <td>
+        <button class="btn btn-sm btn-outline-primary" onclick="openStaffModal('edit',${s.id})">
+          <i class="bi bi-pencil"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-info" onclick="viewStaffDetails(${s.id})">
+          <i class="bi bi-eye"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteStaff(${s.id})">
+          <i class="bi bi-trash"></i>
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// init charts
+function initCharts() {
+  const pCtx = document.getElementById('staffPerformanceChart').getContext('2d');
+  perfChart = new Chart(pCtx, {
+    type:'bar',
+    data:{ labels:[], datasets:[{ label:'Performance Score', data:[], backgroundColor:palette }] },
+    options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } } }
+  });
+  const dCtx = document.getElementById('staffDistributionChart').getContext('2d');
+  distChart = new Chart(dCtx, {
+    type:'pie',
+    data:{ labels:[], datasets:[{ data:[], backgroundColor:palette }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right' } } }
+  });
+}
+
+// refresh charts
+async function refreshCharts() {
+  const [pRes, dRes] = await Promise.all([
+    fetch('/api/staff/performance'),
+    fetch('/api/staff/distribution')
+  ]);
+  const pJ = await pRes.json(), dJ = await dRes.json();
+  perfChart.data.labels = pJ.labels;
+  perfChart.data.datasets[0].data = pJ.data;
+  perfChart.update();
+  distChart.data.labels = dJ.labels;
+  distChart.data.datasets[0].data = dJ.counts;
+  distChart.update();
+
+  document.getElementById('distributionTableBody').innerHTML =
+    dJ.labels.map((lab,i)=>
+      `<tr><td>${lab}</td><td>${dJ.counts[i]}</td></tr>`
+    ).join('');
+}
+
+// on-page load
+async function onPageLoad() {
+  initCharts();
+  await Promise.all([
+    loadStaffList(),
+    refreshCharts()
+  ]);
+  document.getElementById('loadingOverlay').style.display = 'none';
+}
+document.addEventListener('DOMContentLoaded', onPageLoad);
+
+// collect form
+function collectFormData() {
+  return {
+    name: document.getElementById('staffName').value.trim(),
+    email: document.getElementById('staffEmail').value.trim(),
+    phone: document.getElementById('staffPhone').value.trim(),
+    position: document.getElementById('staffPosition').value,
+    department: document.getElementById('staffDepartment').value,
+    join_date: document.getElementById('staffJoinDate').value,
+    status: document.getElementById('staffStatus').value,
+    address: document.getElementById('staffAddress').value.trim(),
+    performance: document.getElementById('staffPerformance').value
+  };
+}
+
+// save button
+document.getElementById('saveStaffBtn').addEventListener('click', () => {
+  const id = document.getElementById('staffId').value;
+  id ? updateStaff(id) : createStaff();
+});
+
+// 新增：打开 Add/Edit Modal
+async function openStaffModal(mode, id) {
+  const modalEl   = document.getElementById('staffModal');
+  const modal     = new bootstrap.Modal(modalEl);
+  const titleElem = modalEl.querySelector('.modal-title');
+  const form      = document.getElementById('staffForm');
+
+  if (mode === 'add') {
+    titleElem.textContent                = 'Add Staff Member';
+    document.getElementById('staffId').value = '';
+    form.reset();
+  } else if (mode === 'edit') {
+    titleElem.textContent                = 'Edit Staff Member';
+    // 加载并填充现有数据
+    const resBody = await fetch(`/api/staff/${id}`).then(r => r.json());
+    const s       = resBody.data;   // <-- 拿到真正的 staff 对象
+    document.getElementById('staffId').value         = s.id;
+    document.getElementById('staffName').value       = s.name;
+    document.getElementById('staffEmail').value      = s.email    || '';
+    document.getElementById('staffPhone').value      = s.phone    || '';
+    document.getElementById('staffPosition').value   = s.position || '';
+    document.getElementById('staffDepartment').value = s.department || '';
+    document.getElementById('staffJoinDate').value   = s.join_date || '';
+    document.getElementById('staffStatus').value     = s.status   || 'Active';
+    document.getElementById('staffAddress').value    = s.address  || '';
+    document.getElementById('staffPerformance').value = s.performance || '';
+  }
+
+  modal.show();
+}
+
+// add
+async function createStaff() {
+  const payload = collectFormData();
+  const res = await fetch('/api/staff', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  }), data = await res.json();
+  if (res.status!==201) return showToast(data.error,'danger');
+  showToast('Staff member added successfully','success');
+  bootstrap.Modal.getInstance(document.getElementById('staffModal')).hide();
+  await loadStaffList();
+  await refreshCharts();
+}
+
+// update
+async function updateStaff(id) {
+  const payload = collectFormData();
+  const res = await fetch(`/api/staff/${id}`, {
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  }), data = await res.json();
+  if (res.status!==200) return showToast(data.error,'danger');
+  showToast('Staff updated successfully','success');
+  bootstrap.Modal.getInstance(document.getElementById('staffModal')).hide();
+  await loadStaffList();
+  await refreshCharts();
+}
+
+// view
+async function viewStaffDetails(id) {
+  const resBody = await fetch(`/api/staff/${id}`).then(r => r.json());
+  const s       = resBody.data;
+  document.getElementById('viewName').value        = s.name;
+  document.getElementById('viewEmail').value       = s.email||'';
+  document.getElementById('viewPhone').value       = s.phone||'';
+  document.getElementById('viewPosition').value    = s.position||'';
+  document.getElementById('viewDepartment').value  = s.department||'';
+  document.getElementById('viewJoinDate').value    = s.join_date||'';
+  document.getElementById('viewStatus').value      = s.status||'';
+  document.getElementById('viewPerformance').value = s.performance||0;
+  document.getElementById('viewAddress').value     = s.address||'';
+  new bootstrap.Modal(document.getElementById('viewStaffModal')).show();
+}
+
+// delete
+async function deleteStaff(id) {
+  if (!confirm('Are you sure you want to delete this staff member?')) return;
+  const res = await fetch(`/api/staff/${id}`,{method:'DELETE'}),
+        data = await res.json();
+  if (res.status!==200) return showToast(data.error,'danger');
+  showToast('Deleted successfully','success');
+  await loadStaffList();
+  await refreshCharts();
+}
+
+// export stub
+function exportStaff() {
+  showToast('Staff data exported successfully','info');
+}
+
+// toast
+function showToast(msg,type='info') {
+  const cnt = document.querySelector('.toast-container') || document.body;
+  const t = document.createElement('div');
+  t.className = `toast align-items-center text-white bg-${type} border-0`;
+  t.setAttribute('role','alert');
+  t.innerHTML = `
+    <div class="d-flex">
+      <div class="toast-body">${msg}</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>`;
+  cnt.appendChild(t);
+  new bootstrap.Toast(t).show();
+}
+</script>
+{% endblock %}

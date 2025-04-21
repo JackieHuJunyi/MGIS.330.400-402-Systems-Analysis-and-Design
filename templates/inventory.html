@@ -1,0 +1,387 @@
+{% extends "layout.html" %}
+{% block title %}Inventory Management{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4 text-gray-800">Inventory Management</h1>
+
+<!-- Action Buttons -->
+<div class="mb-4">
+  <button class="btn btn-success" id="stockInBtn" type="button" data-bs-toggle="modal" data-bs-target="#stockInModal">
+    <i class="fas fa-plus me-1"></i> Record Stock In
+  </button>
+  <button class="btn btn-info ms-2" id="refreshBtn">
+    <i class="fas fa-sync-alt"></i> Refresh Data
+  </button>
+  <button class="btn btn-outline-secondary ms-2" id="exportBtn">
+    <i class="fas fa-file-excel"></i> Export to Excel
+  </button>
+</div>
+
+<!-- Record Stock In Modal -->
+<div class="modal fade" id="stockInModal" tabindex="-1" aria-labelledby="stockInModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="stockInForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="stockInModalLabel">Record Stock In</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="stockInItem" class="form-label">Item <span id="itemUnitLabel"></span></label>
+            <select class="form-select" id="stockInItem" name="item_id" required>
+              <option value="">Select Item...</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="quantityAdded" class="form-label">Quantity Added</label>
+            <input type="number" class="form-control" id="quantityAdded" name="quantity_added" min="0.01" step="any" required>
+          </div>
+          <div class="mb-3">
+            <label for="stockInVendor" class="form-label">Vendor (Optional)</label>
+            <select class="form-select" id="stockInVendor" name="vendor_id">
+              <option value="">Select Vendor...</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="saveStockInBtn">Save Stock In</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Inventory Table -->
+<div class="card shadow mb-4">
+  <div class="card-header py-3">
+    <h6 class="m-0 font-weight-bold text-primary">Inventory List</h6>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover" id="inventoryTable" width="100%" cellspacing="0">
+        <thead>
+          <tr>
+            <th>Inventory ID</th>
+            <th>Item Name</th>
+            <th>Category</th>
+            <th>Stock Level</th>
+            <th>Unit</th>
+            <th>Reorder Level</th>
+            <th>Vendor</th>
+            <th>Status</th>
+            <th>Last Updated</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="inventoryTableBody">
+          <tr>
+            <td colspan="10" class="text-center">Loading inventory data...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Inventory Modal -->
+<div class="modal fade" id="editInventoryModal" tabindex="-1" aria-labelledby="editInventoryLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="editInventoryForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editInventoryLabel">Edit Inventory</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editInventoryId">
+          <div class="mb-3">
+            <label for="editStockLevel" class="form-label">Stock Level</label>
+            <input type="number" class="form-control" id="editStockLevel" min="0" step="any" required>
+          </div>
+          <div class="mb-3">
+            <label for="editReorderLevel" class="form-label">Reorder Level</label>
+            <input type="number" class="form-control" id="editReorderLevel" min="0" required>
+          </div>
+          <div class="mb-3">
+            <label for="editVendorId" class="form-label">Vendor</label>
+            <select class="form-select" id="editVendorId">
+              <option value="">None</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="saveEditBtn">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Inventory Histogram -->
+<div class="card shadow mb-4">
+  <div class="card-header py-3">
+    <h6 class="m-0 font-weight-bold text-primary">Inventory Stock Levels</h6>
+  </div>
+  <div class="card-body">
+    <canvas id="inventoryHistogramCanvas"></canvas>
+  </div>
+</div>
+
+<!-- Success Toast -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="toast-header">
+      <strong class="me-auto text-success">Success</strong>
+      <small>Just now</small>
+      <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body" id="successToastBody">
+      Operation completed successfully!
+    </div>
+  </div>
+</div>
+
+<!-- Error Toast -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="toast-header bg-danger text-white">
+      <strong class="me-auto">Error</strong>
+      <small>Just now</small>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body" id="errorToastBody">
+      An error occurred while processing the request.
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+  let allInventory = [];
+  let allItems = [];
+  let allVendors = [];
+  let inventoryChart = null;
+
+  function showSuccessToast(msg) {
+    document.getElementById('successToastBody').textContent = msg;
+    bootstrap.Toast.getOrCreateInstance(document.getElementById('successToast')).show();
+  }
+  function showErrorToast(msg) {
+    document.getElementById('errorToastBody').textContent = msg;
+    bootstrap.Toast.getOrCreateInstance(document.getElementById('errorToast')).show();
+  }
+
+  function loadItemsForSelect() {
+    fetch('/api/item/all')
+      .then(r => r.json())
+      .then(items => {
+        allItems = items;
+        const sel = document.getElementById('stockInItem');
+        sel.innerHTML = '<option value="">Select Item...</option>';
+        items.forEach(it => {
+          const opt = document.createElement('option');
+          opt.value = it.ItemID;
+          opt.textContent = `${it.Name} (${it.DefaultUnit||'unit'})`;
+          opt.dataset.unit = it.DefaultUnit||'';
+          sel.appendChild(opt);
+        });
+      })
+      .catch(e => showErrorToast('Failed to load items'));
+  }
+
+  function loadVendorsForSelect() {
+    fetch('/api/vendors')
+      .then(r => r.json())
+      .then(vs => {
+        allVendors = vs;
+        const sel1 = document.getElementById('stockInVendor');
+        sel1.innerHTML = '<option value="">Select Vendor...</option>';
+        vs.forEach(v => {
+          const o = document.createElement('option');
+          o.value = v.VendorID;
+          o.textContent = v.Name;
+          sel1.appendChild(o);
+        });
+      })
+      .catch(e => showErrorToast('Failed to load vendors'));
+  }
+
+  function loadInventory() {
+    const tb = document.getElementById('inventoryTableBody');
+    tb.innerHTML = '<tr><td colspan="10" class="text-center">Loading...</td></tr>';
+    fetch('/api/inventory/all')
+      .then(r => {
+        if (!r.ok) return r.json().then(e=>Promise.reject(e));
+        return r.json();
+      })
+      .then(data => {
+        allInventory = data;
+        renderInventoryTable(data);
+        renderInventoryHistogram(data);
+        loadItemsForSelect();
+        loadVendorsForSelect();
+      })
+      .catch(e => {
+        tb.innerHTML = `<tr><td colspan="10" class="text-center text-danger">${e.error||e}</td></tr>`;
+        showErrorToast(e.error||'Failed to load inventory');
+      });
+  }
+
+  function renderInventoryTable(inv) {
+    const tbody = document.getElementById('inventoryTableBody');
+    tbody.innerHTML = '';
+    if (!inv.length) {
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center">No records found</td></tr>';
+      return;
+    }
+    inv.forEach(item => {
+      let cls='text-success', txt='Normal';
+      if (item.Status==='Low'){ cls='text-warning'; txt='Low Stock'; }
+      else if (item.StockLevel<=0){ cls='text-danger'; txt='Out of Stock'; }
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${item.InventoryID}</td>
+        <td>${item.ItemName||'-'}</td>
+        <td>${item.Category||'-'}</td>
+        <td>${item.StockLevel!=null?item.StockLevel:'-'}</td>
+        <td>${item.Unit||'N/A'}</td>
+        <td>${item.ReorderLevel!=null?item.ReorderLevel:'-'}</td>
+        <td>${item.SupplierName||'N/A'}</td>
+        <td class="${cls}">${txt}</td>
+        <td>${item.LastUpdate||'-'}</td>
+        <td><button class="btn btn-sm btn-primary editBtn" data-id="${item.InventoryID}">Edit</button></td>`;
+      tbody.appendChild(tr);
+    });
+    document.querySelectorAll('.editBtn').forEach(b => {
+      b.addEventListener('click', ()=> openEditModal(b.dataset.id));
+    });
+  }
+
+  function openEditModal(id) {
+    const rec = allInventory.find(x=>x.InventoryID==id);
+    if (!rec) return;
+    document.getElementById('editInventoryId').value = id;
+    document.getElementById('editStockLevel').value = rec.StockLevel;
+    document.getElementById('editReorderLevel').value = rec.ReorderLevel;
+    const sel = document.getElementById('editVendorId');
+    sel.innerHTML = '<option value="">None</option>';
+    allVendors.forEach(v=>{
+      const o = document.createElement('option');
+      o.value = v.VendorID;
+      o.textContent = v.Name;
+      if (v.VendorID==rec.VendorID) o.selected=true;
+      sel.appendChild(o);
+    });
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('editInventoryModal')).show();
+  }
+
+  document.getElementById('saveEditBtn').addEventListener('click',()=>{
+    const id = document.getElementById('editInventoryId').value;
+    const payload = {
+      StockLevel: parseFloat(document.getElementById('editStockLevel').value),
+      ReorderLevel: parseInt(document.getElementById('editReorderLevel').value),
+      VendorID: document.getElementById('editVendorId').value||null
+    };
+    fetch(`/api/inventory/${id}`, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    })
+    .then(r=>r.ok? r.json() : r.json().then(e=>Promise.reject(e)))
+    .then(()=>{
+      bootstrap.Modal.getInstance(document.getElementById('editInventoryModal')).hide();
+      showSuccessToast('Inventory updated');
+      loadInventory();
+    })
+    .catch(e=> showErrorToast(e.error||'Update failed'));
+  });
+
+  function renderInventoryHistogram(data){
+    const ctx = document.getElementById('inventoryHistogramCanvas').getContext('2d');
+    if (inventoryChart) inventoryChart.destroy();
+    if (!data.length) return;
+    const labels = data.map(d=>d.ItemName||`ID:${d.InventoryID}`);
+    const values = data.map(d=>d.StockLevel||0);
+    const bg = data.map(d=> d.StockLevel<=0? 'rgba(220,53,69,0.6)' : (d.Status==='Low'? 'rgba(255,193,7,0.6)' : 'rgba(25,135,84,0.6)'));
+    const bd = bg;
+    inventoryChart = new Chart(ctx,{
+      type:'bar',
+      data:{ labels, datasets:[{ label:'Stock Level', data:values, backgroundColor:bg, borderColor:bd, borderWidth:1 }] },
+      options:{
+        scales:{
+          y:{ beginAtZero:true, title:{ display:true, text:'Stock Level' } },
+          x:{ title:{ display:true, text:'Item' } }
+        },
+        plugins:{
+          legend:{ display:false },
+          tooltip:{
+            callbacks:{
+              label:ctx=>{
+                const u = (allInventory[ctx.dataIndex]||{}).Unit||'units';
+                return ` ${ctx.parsed.y} ${u}`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function saveStockIn(){
+    const itemId = document.getElementById('stockInItem').value;
+    const qty = document.getElementById('quantityAdded').value;
+    if (!itemId||qty<=0) return showErrorToast('Please select item and valid quantity');
+    const payload = { item_id:+itemId, quantity_added:+qty,
+                      vendor_id: document.getElementById('stockInVendor').value||null };
+    fetch('/api/inventory/stock_in',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    })
+    .then(r=>r.ok? r.json() : r.json().then(e=>Promise.reject(e)))
+    .then(d=>{
+      bootstrap.Modal.getInstance(document.getElementById('stockInModal')).hide();
+      showSuccessToast('Stock recorded');
+      loadInventory();
+    })
+    .catch(e=> showErrorToast(e.error||'Failed to record stock'));
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    loadInventory();
+    document.getElementById('saveStockInBtn').addEventListener('click', saveStockIn);
+    document.getElementById('refreshBtn').addEventListener('click', loadInventory);
+    document.getElementById('stockInItem').addEventListener('change',function(){
+      const unit = this.selectedOptions[0]?.dataset.unit||'';
+      document.getElementById('itemUnitLabel').textContent = unit? `(${unit})` : '';
+    });
+  });
+  document.getElementById('exportBtn').addEventListener('click', () => {
+  if (!allInventory || allInventory.length === 0) {
+    return toast('No inventory to export.', false);
+  }
+  // 拼装要导出的行
+  const rows = allInventory.map(item => ({
+    "Inventory ID": item.InventoryID,
+    "Item Name":    item.ItemName || '-',
+    "Category":     item.Category || '-',
+    "Stock Level":  item.StockLevel ?? '-',
+    "Unit":         item.Unit || 'N/A',
+    "Reorder Level":item.ReorderLevel ?? '-',
+    "Vendor":       item.SupplierName || 'N/A',
+    "Status":       item.StockLevel <= 0 ? 'Out of Stock'
+                    : (item.Status === 'Low' ? 'Low Stock' : 'Normal'),
+    "Last Updated": item.LastUpdate || '-'
+  }));
+  // 生成工作表 & 工作簿
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+  // 触发下载
+  XLSX.writeFile(wb, "Inventory_Report.xlsx");
+});
+</script>
+{% endblock extra_js %}

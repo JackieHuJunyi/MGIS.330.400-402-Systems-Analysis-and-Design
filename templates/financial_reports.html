@@ -1,0 +1,394 @@
+{% extends "layout.html" %}
+{% block page_title %}Financial Reports{% endblock %}
+{% block page_header %}Financial Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="d-flex align-items-center mb-4">
+    <i class="bi bi-bar-chart-line-fill fs-3 text-primary me-2"></i>
+    <div>
+      <h2 class="mb-0 fw-bold">Financial Report</h2>
+      <small class="text-muted">Report generated on {{ now.strftime('%Y-%m-%d') }}</small>
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap gap-3 mb-4">
+    {% set summary_cards = [
+      ('Total Revenue', financial_summary.total_revenue, 'text-primary'),
+      ('Total Discounts', financial_summary.total_discounts, 'text-danger'),
+      ('Gross Profit', financial_summary.gross_profit, 'text-success'),
+      ('Total Purchase Costs', financial_summary.total_purchases, 'text-warning')
+    ] %}
+    {% for label, value, cls in summary_cards %}
+    <div class="card p-3 shadow-sm text-center flex-fill" style="min-width:220px;">
+      <h6 class="text-muted">{{ label }}</h6>
+      <h4 class="{{ cls }}">${{ value|round(2) }}</h4>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="row text-center mb-4">
+    {% set metrics = [
+      ('Items Sold', financial_summary.total_items_sold),
+      ('New Orders (30 days)', financial_summary.new_orders_last_30_days),
+      ('New Customers (30 days)', financial_summary.new_customers_last_30_days)
+    ] %}
+    {% for label, value in metrics %}
+    <div class="col-md-4 mb-2">
+      <div class="card p-3 shadow-sm">
+        <h6 class="text-muted">{{ label }}</h6>
+        <h4 class="text-info">{{ value }}</h4>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="row mb-4">
+
+    <div class="col-lg-6 mb-3">
+      <div class="card shadow-sm border-start border-4 border-primary h-100">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+          <h5 class="mb-0 text-dark"><i class="bi bi-person-lines-fill me-2"></i>Accounts Receivable</h5>
+          <button id="exportReceivablesBtn" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-file-earmark-excel"></i> Export Receivables
+          </button>
+        </div>
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex justify-content-between mb-3">
+            <div>
+              <h6 class="text-muted mb-1">Total Outstanding</h6>
+              <h4 class="text-primary" id="receivableTotalOutstanding">${{ financial_summary.receivables.total|round(2) }}</h4> {# Added ID #}
+            </div>
+            <div>
+              <h6 class="text-muted mb-1">Overdue Amount</h6>
+              <h4 class="text-danger" id="receivableTotalOverdue">${{ financial_summary.receivables.overdue|round(2) }}</h4> {# Added ID #}
+            </div>
+          </div>
+          <div class="table-responsive flex-grow-1">
+            <table class="table table-bordered table-sm text-center align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Customer</th>
+                  <th>Amount</th>
+                  <th>Due Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="receivablesTableBody">
+                {% if financial_summary.receivables.records %}
+                  {% for r in financial_summary.receivables.records %}
+                  <tr data-receivable-id="{{ r.ReceivableID }}">
+                    <td>{{ r.customer_name or 'Unknown' }}</td>
+                    <td>${{ r.ReceivableAmount|round(2) }}</td>
+                    <td>{{ r.ReceivableDate.strftime('%Y-%m-%d') if r.ReceivableDate else 'N/A' }}</td>
+                    <td class="receivable-status">
+                      {% set is_overdue = r.ReceivableDate and r.ReceivableDate < now %}
+                      {% if r.Status == 'Paid' %}
+                        <span class="badge bg-success">Paid</span>
+                      {% elif is_overdue %}
+                        <span class="badge bg-danger">Overdue</span>
+                      {% else %}
+                        <span class="badge bg-warning text-dark">Unpaid</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr><td colspan="4" class="text-muted py-3">No outstanding receivables found</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6 mb-3">
+      <div class="card shadow-sm border-start border-4 border-warning h-100">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+          <h5 class="mb-0 text-dark"><i class="bi bi-cash-stack me-2"></i>Accounts Payable</h5>
+          <button id="exportPayablesBtn" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-file-earmark-excel"></i> Export Payables
+          </button>
+        </div>
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex justify-content-between mb-3">
+            <div>
+              <h6 class="text-muted mb-1">Total Outstanding</h6>
+              {# ---- ADDED ID HERE ---- #}
+              <h4 class="text-primary" id="payableTotalOutstanding">${{ financial_summary.payables.total|round(2) }}</h4>
+            </div>
+            <div>
+              <h6 class="text-muted mb-1">Overdue Amount</h6>
+               {# ---- ADDED ID HERE ---- #}
+              <h4 class="text-danger" id="payableTotalOverdue">${{ financial_summary.payables.overdue|round(2) }}</h4>
+            </div>
+          </div>
+          <div class="table-responsive flex-grow-1">
+            <table class="table table-bordered table-sm text-center align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Vendor</th>
+                  <th>Amount</th>
+                  <th>Due Date</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="payablesTableBody">
+                {% if financial_summary.payables.records %}
+                  {% for p in financial_summary.payables.records %}
+                  <tr data-payable-id="{{ p.PayableID }}">
+                    <td>{{ p.vendor_name or 'Unknown' }}</td>
+                    <td>${{ p.PayableAmount|round(2) }}</td>
+                    <td>{{ p.PayableDate.strftime('%Y-%m-%d') if p.PayableDate else 'N/A' }}</td>
+                    <td class="payable-status">
+                      {% set is_overdue = p.PayableDate and p.PayableDate < now %}
+                      {% if p.PayableStatus == 'Paid' %}
+                        <span class="badge bg-success">Paid</span>
+                      {% elif is_overdue %}
+                        <span class="badge bg-danger">Overdue</span>
+                      {% else %}
+                        <span class="badge bg-warning text-dark">Unpaid</span>
+                      {% endif %}
+                    </td>
+                    <td class="payable-action">
+                      {% if p.PayableStatus != 'Paid' %}
+                        <button class="btn btn-sm btn-outline-success mark-paid-btn"
+                                data-payable-id="{{ p.PayableID }}"
+                                title="Mark this payable as paid">
+                          <i class="bi bi-check-circle"></i> Mark Paid
+                        </button>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr><td colspan="5" class="text-muted py-3">No outstanding payables found</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<script>
+  // Keep existing data for export
+  const receivablesData = {{ financial_summary.receivables.records | tojson | safe if financial_summary and financial_summary.receivables else [] }};
+  const payablesData = {{ financial_summary.payables.records | tojson | safe if financial_summary and financial_summary.payables else [] }};
+  const now_iso = "{{ now.isoformat() }}";
+
+  // Format currency helper
+  function formatCurrency(value) {
+      const number = parseFloat(value);
+      return isNaN(number) ? '$0.00' : `$${number.toFixed(2)}`;
+  }
+
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Keep existing export functionality
+    const exportReceivablesBtn = document.getElementById("exportReceivablesBtn");
+    if (exportReceivablesBtn) {
+        exportReceivablesBtn.addEventListener("click", () => {
+            if (!receivablesData || receivablesData.length === 0) {
+                showToast('Info', 'No receivables data to export.', 'info'); return;
+            }
+            const rows = receivablesData.map(r => ({
+                "Customer": r.customer_name || "Unknown",
+                "Amount": r.ReceivableAmount ? Number(r.ReceivableAmount).toFixed(2) : '0.00',
+                "Due Date": r.ReceivableDate ? r.ReceivableDate : 'N/A',
+                "Status": getStatusText(r.Status, r.ReceivableDate)
+            }));
+            exportToExcel(rows, "Receivables", "receivables_report.xlsx");
+        });
+    }
+
+    const exportPayablesBtn = document.getElementById("exportPayablesBtn");
+    if (exportPayablesBtn) {
+         exportPayablesBtn.addEventListener("click", () => {
+             if (!payablesData || payablesData.length === 0) {
+                 showToast('Info', 'No payables data to export.', 'info'); return;
+             }
+             const rows = payablesData.map(p => ({
+                "Vendor": p.vendor_name || "Unknown",
+                "Amount": p.PayableAmount ? Number(p.PayableAmount).toFixed(2) : '0.00',
+                "Due Date": p.PayableDate ? p.PayableDate : 'N/A',
+                "Status": getStatusText(p.PayableStatus, p.PayableDate)
+            }));
+            exportToExcel(rows, "Payables", "payables_report.xlsx");
+        });
+    }
+
+    // Event Listener for 'Mark as Paid' buttons (using delegation)
+    const payablesTableBody = document.getElementById('payablesTableBody');
+    if (payablesTableBody) {
+        payablesTableBody.addEventListener('click', function(event) {
+            const targetButton = event.target.closest('.mark-paid-btn');
+            if (targetButton) {
+                event.preventDefault();
+                const payableId = targetButton.dataset.payableId;
+                if (payableId) {
+                    markPayableAsPaid(payableId, targetButton);
+                } else {
+                     console.error("Could not find payable ID on the button.");
+                }
+            }
+        });
+    } else {
+         console.warn("Payables table body not found.");
+    }
+  }); // End DOMContentLoaded
+
+  // Function to mark payable as paid
+  function markPayableAsPaid(payableId, buttonElement) {
+     if (!confirm(`Are you sure you want to mark Payable ID #${payableId} as paid?`)) {
+        return;
+     }
+
+     buttonElement.disabled = true;
+     buttonElement.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Updating...`;
+
+     fetch(`/api/finance/payables/${payableId}`, {
+         method: 'PUT',
+         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+         body: JSON.stringify({ status: 'Paid' })
+     })
+     .then(response => {
+         if (!response.ok) {
+             return response.json().then(err => Promise.reject(err.message || `Update failed: ${response.statusText}`));
+         }
+         return response.json();
+     })
+     .then(data => {
+         showToast('Success', data.message || `Payable #${payableId} marked as paid.`, 'success');
+
+         // Update the UI for this row
+         const row = buttonElement.closest('tr');
+         if (row) {
+             const statusCell = row.querySelector('.payable-status');
+             const actionCell = row.querySelector('.payable-action');
+             if (statusCell) statusCell.innerHTML = `<span class="badge bg-success">Paid</span>`;
+             if (actionCell) actionCell.innerHTML = ''; // Remove button
+         }
+
+         // ------ NEW: Update Summary Display ------
+         updatePayableSummaryDisplay();
+         // -----------------------------------------
+
+     })
+     .catch(error => {
+         console.error('Error marking payable as paid:', error);
+         showToast('Error', `Failed to update payable: ${error}`, 'danger');
+         buttonElement.disabled = false; // Re-enable button on error
+         buttonElement.innerHTML = `<i class="bi bi-check-circle"></i> Mark Paid`;
+     });
+  }
+
+  // ------ NEW: Function to Update Payable Summary Display ------
+  function updatePayableSummaryDisplay() {
+      fetch('/api/finance/summary') // Fetch the latest summary data
+          .then(response => {
+              if (!response.ok) {
+                   return response.json().then(err => Promise.reject(err.message || `Summary fetch failed: ${response.statusText}`));
+              }
+              return response.json();
+           })
+          .then(summaryData => {
+              // Update Payable Summary elements
+              const totalOutstandingEl = document.getElementById('payableTotalOutstanding');
+              const totalOverdueEl = document.getElementById('payableTotalOverdue');
+
+              if (totalOutstandingEl && summaryData.payables) {
+                  totalOutstandingEl.textContent = formatCurrency(summaryData.payables.total);
+              }
+              if (totalOverdueEl && summaryData.payables) {
+                  totalOverdueEl.textContent = formatCurrency(summaryData.payables.overdue);
+              }
+
+              // Optionally update receivable summary if needed (though not directly changed here)
+              const receivableTotalEl = document.getElementById('receivableTotalOutstanding');
+              const receivableOverdueEl = document.getElementById('receivableTotalOverdue');
+              if (receivableTotalEl && summaryData.receivables) {
+                  receivableTotalEl.textContent = formatCurrency(summaryData.receivables.total);
+              }
+              if (receivableOverdueEl && summaryData.receivables) {
+                  receivableOverdueEl.textContent = formatCurrency(summaryData.receivables.overdue);
+              }
+
+          })
+          .catch(error => {
+              console.error('Error fetching or updating account summary:', error);
+              showToast('Warning', 'Could not refresh summary totals.', 'warning');
+          });
+  }
+  // ------ End NEW Function ------
+
+
+  // Helper function for Excel export
+  function exportToExcel(data, sheetName, fileName) {
+      try {
+          const worksheet = XLSX.utils.json_to_sheet(data);
+          const cols = Object.keys(data[0] || {}).map(key => ({ wch: Math.max(key.length, ...data.map(row => String(row[key] || '').length)) + 2 }));
+          worksheet['!cols'] = cols;
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+          XLSX.writeFile(workbook, fileName);
+          showToast('Success', `${sheetName} data exported successfully.`, 'success');
+      } catch (e) {
+          console.error("Excel export error:", e);
+          showToast('Error', `Failed to export ${sheetName} data: ${e.message}`, 'danger');
+      }
+  }
+
+  // Helper to determine status text for export
+   function getStatusText(status, dateStr) {
+       if (status === 'Paid') return 'Paid';
+       if (!dateStr) return 'Unpaid';
+       try {
+            const dueDate = new Date(dateStr);
+            const today = new Date(now_iso);
+            dueDate.setHours(0, 0, 0, 0);
+            today.setHours(0, 0, 0, 0);
+            return dueDate < today ? 'Overdue' : 'Unpaid';
+       } catch (e) { return 'Unpaid (Date Error)'; }
+   }
+
+   // Toast Notification Function
+   function showToast(title, message, type = 'info') {
+        const toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+             console.error("Toast container not found!");
+             alert(`${title}: ${message}`); return;
+        }
+        const toastId = 'toast-' + Date.now();
+        const toastHtml = `
+            <div id="${toastId}" class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <strong>${title}:</strong> ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `;
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        const toastElement = document.getElementById(toastId);
+        if (toastElement) {
+            const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+            toast.show();
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                 if (toastElement.parentNode === toastContainer) {
+                     toastContainer.removeChild(toastElement);
+                 }
+            });
+        }
+   }
+</script>
+{% endblock %}

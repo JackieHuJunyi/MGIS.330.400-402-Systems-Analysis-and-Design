@@ -1,0 +1,1490 @@
+{% extends "layout.html" %} {% block page_title %}Order Management{% endblock %} {% block page_header %}Order Management{% endblock %} {% block extra_css %}
+<style>
+    /* Optional: Add custom styles for filters or table */
+    
+    .filter-form .form-label {
+        font-size: 0.85rem;
+        margin-bottom: 0.2rem;
+    }
+    
+    .table th {
+        white-space: nowrap;
+    }
+    /* Highlight animation for new orders */
+    
+    .new-order-highlight {
+        animation: highlightFade 5s ease-in-out;
+    }
+    
+    @keyframes highlightFade {
+        0% {
+            background-color: rgba(40, 167, 69, 0.5);
+        }
+        80% {
+            background-color: rgba(40, 167, 69, 0.5);
+        }
+        100% {
+            background-color: transparent;
+        }
+    }
+    /* Customized toast container */
+    
+    .toast-container {
+        position: fixed;
+        /* Changed from bottom/end to top/right for better visibility */
+        top: 20px; 
+        right: 20px;
+        z-index: 1060; /* Ensure toasts are on top */
+    }
+    
+    .toast {
+        min-width: 250px;
+        box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        opacity: 0.9;
+        border-radius: 0.25rem;
+        border-left: 4px solid;
+    }
+    
+    .toast.bg-success {
+        border-left-color: #28a745;
+    }
+    
+    .toast.bg-danger {
+        border-left-color: #dc3545;
+    }
+    
+    .toast.bg-info {
+        border-left-color: #17a2b8;
+    }
+    
+    .toast.bg-warning {
+        border-left-color: #ffc107;
+    }
+
+    /* Style for paid/unpaid rows */
+    .table-row-paid {
+         /* Optional: Light green background for paid rows */
+        /* background-color: rgba(40, 167, 69, 0.05); */
+    }
+    .table-row-unpaid {
+        /* Optional: Light warning background for unpaid rows */
+        /* background-color: rgba(255, 193, 7, 0.05); */
+    }
+</style>
+{% endblock %} {% block content %}
+<div class="container-fluid">
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light">
+            Filters
+        </div>
+        <div class="card-body">
+            <form id="filterForm" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="startDate" class="form-label">Start Date</label>
+                    <input type="date" class="form-control form-control-sm" id="startDate">
+                </div>
+                <div class="col-md-3">
+                    <label for="endDate" class="form-label">End Date</label>
+                    <input type="date" class="form-control form-control-sm" id="endDate">
+                </div>
+                <div class="col-md-2">
+                    <label for="statusFilter" class="form-label">Status</label>
+                    <select id="statusFilter" class="form-select form-select-sm">
+                        <option value="" selected>All Status</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Processing">Processing</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Delivered">Delivered</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="channelFilter" class="form-label">Channel</label>
+                    <select id="channelFilter" class="form-select form-select-sm">
+                        <option value="" selected>All Channels</option>
+                        <option value="Dine-in">Dine-in</option>
+                        <option value="Takeaway">Takeaway</option>
+                        <option value="App Order">App Order</option>
+                        <option value="Web Order">Web Order</option>
+                    </select>
+                </div>
+                 <div class="col-md-2">
+                    <label for="paymentFilter" class="form-label">Payment</label>
+                    <select id="paymentFilter" class="form-select form-select-sm">
+                        <option value="" selected>All Payment</option>
+                        <option value="true">Paid</option>
+                        <option value="false">Unpaid</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>Order List</div>
+            <div class="d-flex align-items-center">
+                <span id="totalItemsInfo" class="text-muted small me-3"></span>
+                <button id="addOrderBtn" class="btn btn-success btn-sm">
+                    <i class="bi bi-plus-circle"></i> Add Order
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Date</th>
+                            <th>Customer</th>
+                            <th>Dishes</th>
+                            <th>Qty</th>
+                            <th>Channel</th>
+                            <th>Type</th>
+                            <th>Discount</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Payment</th> <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody">
+                        <tr>
+                            <td colspan="12" class="text-center py-5"> Waiting for script to load...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+            <span id="paginationInfo" class="text-muted small"></span>
+            <nav aria-label="Page navigation">
+                <ul class="pagination pagination-sm mb-0" id="paginationControls">
+                    </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="orderDetailsModalLabel">Order Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modalOrderDetailsContent">
+                    <p>Loading details...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" id="modalMarkPaidBtn" style="display: none;" data-sale-id="">
+                    <i class="bi bi-check-circle"></i> Mark as Paid
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="addOrderModal" tabindex="-1" aria-labelledby="addOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addOrderModalLabel">Add New Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addOrderForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="customerSelect" class="form-label">Customer</label>
+                            <select id="customerSelect" class="form-select">
+                                <option value="">-- Guest Order --</option>
+                                </select>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="orderType" class="form-label">Order Type</label>
+                                    <select id="orderType" class="form-select" required>
+                                        <option value="">-- Select Type --</option>
+                                        <option value="Dine-in">Dine-in</option> <option value="Takeaway">Takeaway</option>
+                                        <option value="Delivery">Delivery</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="orderChannel" class="form-label">Channel</label>
+                                    <select id="orderChannel" class="form-select" required>
+                                        <option value="">-- Select Channel --</option>
+                                        <option value="Dine-in">Dine-in</option>
+                                        <option value="Takeaway">Takeaway</option>
+                                        <option value="App Order">App Order</option>
+                                        <option value="Web Order">Web Order</option>
+                                        <option value="Phone">Phone</option> </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h6>Order Items</h6>
+
+                    <div id="orderItems">
+                        <div class="row order-item mb-2 align-items-end">
+                            <div class="col-md-5">
+                                <label class="form-label">Dish</label>
+                                <select class="form-select dish-select" required>
+                                    <option value="">-- Select Dish --</option>
+                                    </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Price</label>
+                                <input type="text" class="form-control item-price" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Quantity</label>
+                                <input type="number" class="form-control item-quantity" value="1" min="1" required>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-outline-danger remove-item" title="Remove Item">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-2">
+                        <button type="button" id="addItemBtn" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-plus-circle"></i> Add Another Item
+                        </button>
+                    </div>
+
+                    <hr>
+                    <div class="row justify-content-end">
+                        <div class="col-md-4">
+                            <div class="mb-2 d-flex justify-content-between">
+                                <span>Subtotal:</span>
+                                <span id="orderSubtotal">$0.00</span>
+                            </div>
+                            <div class="mb-2">
+                                <label for="discountAmount" class="form-label">Discount Amount</label>
+                                <input type="number" id="discountAmount" class="form-control" value="0" min="0" step="0.01">
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="paymentCompletedCheck">
+                                <label class="form-check-label" for="paymentCompletedCheck">
+                                    Payment Received
+                                </label>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <strong>Total:</strong>
+                                <strong id="orderTotal">$0.00</strong>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="saveOrderBtn" class="btn btn-primary">Save Order</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %} {% block extra_js %}
+<script>
+    console.log("orders_management.html script block started."); // DEBUG
+
+    // Ensure DOM elements are available
+    const ordersTableBody = document.getElementById('ordersTableBody');
+    const paginationControls = document.getElementById('paginationControls');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const totalItemsInfo = document.getElementById('totalItemsInfo');
+    const filterForm = document.getElementById('filterForm');
+    const orderDetailsModalElement = document.getElementById('orderDetailsModal');
+    const orderDetailsModal = new bootstrap.Modal(orderDetailsModalElement);
+    const modalOrderDetailsContent = document.getElementById('modalOrderDetailsContent');
+    const modalMarkPaidBtn = document.getElementById('modalMarkPaidBtn'); // Get modal paid button
+
+    // Add Order Elements
+    const addOrderBtn = document.getElementById('addOrderBtn');
+    const addOrderModalElement = document.getElementById('addOrderModal');
+    const addOrderModal = new bootstrap.Modal(addOrderModalElement);
+    const customerSelect = document.getElementById('customerSelect');
+    const addItemBtn = document.getElementById('addItemBtn');
+    const orderItems = document.getElementById('orderItems');
+    const orderSubtotal = document.getElementById('orderSubtotal');
+    const discountAmount = document.getElementById('discountAmount');
+    const orderTotal = document.getElementById('orderTotal');
+    const saveOrderBtn = document.getElementById('saveOrderBtn');
+    const paymentCompletedCheck = document.getElementById('paymentCompletedCheck'); // Get checkbox
+
+    let currentPage = 1;
+    const itemsPerPage = 15;
+    let allDishes = []; // Will store dishes for the dropdown
+
+    // --- Helper Functions ---
+    function formatDateTime(dateString) {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+            console.warn("Invalid date string received:", dateString);
+            return 'Invalid Date';
+        }
+        // Using locale 'en-CA' for YYYY-MM-DD format, then combining with time
+        const datePart = date.toLocaleDateString('en-CA'); // Gives YYYY-MM-DD
+        const timePart = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+        return `${datePart} ${timePart}`;
+    }
+
+    function formatCurrency(value) {
+        const number = parseFloat(value);
+        if (isNaN(number)) {
+            console.warn("Invalid currency value received:", value);
+            return '$NaN';
+        }
+        return '$' + number.toFixed(2);
+    }
+
+    function getBadgeClass(status) {
+        switch (status) {
+            case 'Completed': return 'bg-success';
+            case 'Pending': return 'bg-warning text-dark';
+            case 'Cancelled': return 'bg-danger';
+            case 'Delivered': return 'bg-info';
+            case 'Processing': return 'bg-primary';
+            default: return 'bg-secondary';
+        }
+    }
+
+    function getPaymentBadge(isPaid) {
+        return isPaid 
+            ? '<span class="badge bg-success">Paid</span>' 
+            : '<span class="badge bg-warning text-dark">Unpaid</span>';
+    }
+
+    // --- Core Logic Functions ---
+    function fetchOrders(page = 1, forceRefresh = false) {
+        console.log(`WorkspaceOrders called: page=${page}, forceRefresh=${forceRefresh}`); // DEBUG
+        currentPage = page;
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+        const status = document.getElementById('statusFilter').value;
+        const channel = document.getElementById('channelFilter').value;
+        const paymentStatus = document.getElementById('paymentFilter').value; // Get payment filter value
+
+
+        ordersTableBody.innerHTML = `<tr><td colspan="12" class="text-center py-5"><div class="spinner-border spinner-border-sm" role="status"></div> Loading...</td></tr>`; // Adjusted colspan
+        paginationControls.innerHTML = '';
+        paginationInfo.textContent = '';
+        totalItemsInfo.textContent = '';
+
+        // Always sort by SaleDate desc to show newest orders first
+        let apiUrl = `/api/orders/all?page=${page}&per_page=${itemsPerPage}&sort_by=SaleDate&sort_order=desc`;
+        if (startDate) apiUrl += `&start_date=${startDate}`;
+        if (endDate) apiUrl += `&end_date=${endDate}`;
+        if (status) apiUrl += `&status=${status}`;
+        if (channel) apiUrl += `&channel=${channel}`;
+        if (paymentStatus !== "") apiUrl += `&payment_completed=${paymentStatus}`; // Add payment filter to API call
+
+
+        // Add random parameter to avoid caching
+        if (forceRefresh) {
+            apiUrl += `&_=${Date.now()}`;
+        }
+
+        console.log("API URL:", apiUrl); // DEBUG
+
+        fetch(apiUrl)
+            .then(response => {
+                console.log("Fetch response status:", response.status); // DEBUG
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        console.error("API error response:", text);
+                        throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Received data:", data); // DEBUG
+                console.log("Sales array length:", data.sales ? data.sales.length : 0);
+                console.log("Total items:", data.total_items);
+                console.log("Current page:", data.current_page, "Total pages:", data.total_pages);
+
+                ordersTableBody.innerHTML = ''; // Clear previous content
+                if (data && data.sales && data.sales.length > 0) {
+                    console.log("Processing sales data and updating table...");
+                    data.sales.forEach((sale, index) => {
+                        console.log(`Processing sale record #${index+1}:`, sale.SaleID, `Paid: ${sale.PaymentCompleted}`);
+                        const row = ordersTableBody.insertRow();
+                        row.dataset.saleId = sale.SaleID; // Add data-sale-id to row for easy targeting
+                        row.classList.add(sale.PaymentCompleted ? 'table-row-paid' : 'table-row-unpaid'); // Add class based on payment status
+
+
+                        // Highlight newly created orders
+                        if (window.lastCreatedOrderId && sale.SaleID === window.lastCreatedOrderId) {
+                            row.classList.add('table-success', 'new-order-highlight');
+                            setTimeout(() => {
+                                row.classList.remove('table-success', 'new-order-highlight');
+                            }, 5000);
+                            window.lastCreatedOrderId = null; // Reset after highlighting
+                        }
+
+                        let itemsHtml = '-';
+                        if (sale.Dishes && typeof sale.Dishes === 'string' && sale.Dishes !== 'N/A') {
+                            try {
+                                const dishList = sale.Dishes.split(',').map(d => d.trim());
+                                itemsHtml = dishList.slice(0, 2).join(', ') + (dishList.length > 2 ? '...' : '');
+                            } catch (e) {
+                                console.error("Error processing Dishes string:", sale.Dishes, e);
+                                itemsHtml = "Error";
+                            }
+                        } else if (sale.Dishes !== 'N/A') {
+                            console.warn("Received non-string or null Dishes field:", sale.Dishes);
+                        }
+                        row.innerHTML = `
+                            <td>${sale.SaleID !== null && sale.SaleID !== undefined ? sale.SaleID : 'N/A'}</td>
+                            <td>${formatDateTime(sale.SaleDate)}</td>
+                            <td>${sale.CustomerName || 'Guest'}</td>
+                            <td>${itemsHtml}</td>
+                            <td>${sale.TotalQuantity !== null && sale.TotalQuantity !== undefined ? sale.TotalQuantity : 0}</td>
+                            <td>${sale.Channel || '-'}</td>
+                            <td>${sale.OrderType || '-'}</td>
+                            <td>${formatCurrency(sale.DiscountAmount)}</td>
+                            <td>${formatCurrency(sale.TotalAmount)}</td>
+                            <td><span class="badge ${getBadgeClass(sale.Status)}">${sale.Status || 'Unknown'}</span></td>
+                            <td class="payment-status-cell">${getPaymentBadge(sale.PaymentCompleted)}</td> <td>
+                                <button class="btn btn-sm btn-outline-primary view-details" data-sale-id="${sale.SaleID}" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <div class="dropdown d-inline-block ms-1">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Change Status">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end status-dropdown">
+                                        <li><h6 class="dropdown-header">Change Status</h6></li>
+                                        <li><button class="dropdown-item status-action" data-sale-id="${sale.SaleID}" data-status="Pending">Pending</button></li>
+                                        <li><button class="dropdown-item status-action" data-sale-id="${sale.SaleID}" data-status="Processing">Processing</button></li>
+                                        <li><button class="dropdown-item status-action" data-sale-id="${sale.SaleID}" data-status="Delivered">Delivered</button></li>
+                                        <li><button class="dropdown-item status-action" data-sale-id="${sale.SaleID}" data-status="Completed">Completed</button></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><button class="dropdown-item status-action text-danger" data-sale-id="${sale.SaleID}" data-status="Cancelled">Cancel Order</button></li>
+                                    </ul>
+                                </div>
+                                <button 
+                                    class="btn btn-sm btn-outline-success mark-paid-btn ms-1 ${sale.PaymentCompleted ? 'disabled' : ''}" 
+                                    data-sale-id="${sale.SaleID}" 
+                                    title="${sale.PaymentCompleted ? 'Already Paid' : 'Mark as Paid'}"
+                                    ${sale.PaymentCompleted ? 'disabled' : ''}>
+                                    <i class="bi bi-cash-coin"></i>
+                                </button>
+                            </td>
+                        `;
+                    });
+                    console.log("Table update complete");
+                    updatePagination(data.current_page, data.total_pages, data.total_items);
+                } else {
+                    console.log("No orders found");
+                    ordersTableBody.innerHTML = `<tr><td colspan="12" class="text-center py-4">No orders found matching the criteria.</td></tr>`; // Adjusted colspan
+                    paginationInfo.textContent = 'Showing 0 of 0 items';
+                    totalItemsInfo.textContent = 'Total Items: 0';
+                    updatePagination(1, 0, 0);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching orders:', error);
+                ordersTableBody.innerHTML = `<tr><td colspan="12" class="text-center py-4 text-danger">Error loading orders: ${error.message}. Please try again.</td></tr>`; // Adjusted colspan
+                updatePagination(1, 0, 0);
+            });
+    }
+
+    function updatePagination(currentPage, totalPages, totalItems) {
+        console.log(`updatePagination called: page=${currentPage}, totalPages=${totalPages}, totalItems=${totalItems}`); // DEBUG
+        paginationControls.innerHTML = '';
+        if (totalPages <= 0) { // Handle case where totalPages might be 0
+             paginationInfo.textContent = `Showing ${totalItems} items`;
+             totalItemsInfo.textContent = `Total Items: ${totalItems}`;
+             return;
+        }
+
+        const createPageItem = (pageNum, label, isDisabled = false, isActive = false) => {
+            const li = document.createElement('li');
+            li.classList.add('page-item');
+            if (isDisabled) li.classList.add('disabled');
+            if (isActive) li.classList.add('active');
+            li.innerHTML = `<a class="page-link" href="#" data-page="${pageNum}">${label}</a>`;
+            return li;
+        };
+
+        // Previous Button
+        paginationControls.appendChild(createPageItem(currentPage - 1, 'Previous', currentPage === 1));
+
+        // Page Number Buttons (simplified logic for demonstration)
+        const maxPagesToShow = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+        let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+        // Adjust if near the end
+        if (endPage - startPage + 1 < maxPagesToShow) {
+            startPage = Math.max(1, endPage - maxPagesToShow + 1);
+        }
+
+        if (startPage > 1) {
+            paginationControls.appendChild(createPageItem(1, '1'));
+            if (startPage > 2) {
+                const ellipsisLi = document.createElement('li');
+                ellipsisLi.classList.add('page-item', 'disabled');
+                ellipsisLi.innerHTML = `<span class="page-link">...</span>`;
+                paginationControls.appendChild(ellipsisLi);
+            }
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            paginationControls.appendChild(createPageItem(i, i, false, i === currentPage));
+        }
+
+        if (endPage < totalPages) {
+             if (endPage < totalPages - 1) {
+                const ellipsisLi = document.createElement('li');
+                ellipsisLi.classList.add('page-item', 'disabled');
+                ellipsisLi.innerHTML = `<span class="page-link">...</span>`;
+                paginationControls.appendChild(ellipsisLi);
+            }
+            paginationControls.appendChild(createPageItem(totalPages, totalPages));
+        }
+
+        // Next Button
+        paginationControls.appendChild(createPageItem(currentPage + 1, 'Next', currentPage === totalPages));
+
+        const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+        const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+        paginationInfo.textContent = `Showing ${startItem}-${endItem} of ${totalItems} items`;
+        totalItemsInfo.textContent = `Total Items: ${totalItems}`;
+    }
+
+
+    function showOrderDetails(saleId) {
+        console.log("showOrderDetails called for Sale ID:", saleId); // DEBUG
+        modalOrderDetailsContent.innerHTML = '<p><div class="spinner-border spinner-border-sm"></div> Loading details...</p>';
+        modalMarkPaidBtn.style.display = 'none'; // Hide button initially
+        modalMarkPaidBtn.disabled = true;
+        orderDetailsModal.show();
+
+        fetch(`/api/orders/${saleId}`)
+            .then(response => {
+                console.log("Fetch details response status:", response.status); // DEBUG
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Failed to fetch details! status: ${response.status}, message: ${text}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Received details data:", data); // DEBUG
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Store payment status to control modal button
+                const isPaid = data.PaymentCompleted;
+
+                let detailsHtml = `
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Order ID:</strong> ${data.SaleID}<br>
+                            <strong>Date:</strong> ${formatDateTime(data.SaleDate)}<br>
+                            <strong>Customer:</strong> ${data.CustomerName || 'Guest'} (ID: ${data.CustomerID || 'N/A'})<br>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Status:</strong> <span id="modal-status-badge" class="badge ${getBadgeClass(data.Status)}">${data.Status}</span><br>
+                            <strong>Payment:</strong> <span id="modal-payment-badge" class="badge ${isPaid ? 'bg-success' : 'bg-warning text-dark'}">${isPaid ? 'Paid' : 'Unpaid'}</span><br> <strong>Channel:</strong> ${data.Channel || '-'}<br>
+                            <strong>Type:</strong> ${data.OrderType || '-'}<br>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                         <div class="d-flex align-items-center">
+                            <span class="me-2">Update Status:</span>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-secondary modal-status-btn ${data.Status === 'Pending' ? 'active' : ''}"
+                                    data-sale-id="${data.SaleID}" data-status="Pending">Pending</button>
+                                <button type="button" class="btn btn-outline-primary modal-status-btn ${data.Status === 'Processing' ? 'active' : ''}"
+                                    data-sale-id="${data.SaleID}" data-status="Processing">Processing</button>
+                                <button type="button" class="btn btn-outline-info modal-status-btn ${data.Status === 'Delivered' ? 'active' : ''}"
+                                    data-sale-id="${data.SaleID}" data-status="Delivered">Delivered</button>
+                                <button type="button" class="btn btn-outline-success modal-status-btn ${data.Status === 'Completed' ? 'active' : ''}"
+                                    data-sale-id="${data.SaleID}" data-status="Completed">Completed</button>
+                                <button type="button" class="btn btn-outline-danger modal-status-btn ${data.Status === 'Cancelled' ? 'active' : ''}"
+                                    data-sale-id="${data.SaleID}" data-status="Cancelled">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <h5>Items</h5>
+                    <table class="table table-sm table-bordered">
+                        <thead><tr><th>Dish Name</th><th>Quantity</th><th>Unit Price</th><th>Subtotal</th></tr></thead>
+                        <tbody>`;
+
+                let calculatedTotal = 0;
+                if (data.Dishes && Array.isArray(data.Dishes) && data.Dishes.length > 0) {
+                    data.Dishes.forEach(item => {
+                        const unitPrice = parseFloat(item.UnitPrice || 0);
+                        const quantity = parseInt(item.Quantity || 0);
+                        const subtotal = unitPrice * quantity;
+                        calculatedTotal += subtotal;
+                        detailsHtml += `
+                            <tr>
+                                <td>${item.DishName || 'Unknown'}</td>
+                                <td>${quantity}</td>
+                                <td>${formatCurrency(unitPrice)}</td>
+                                <td>${formatCurrency(subtotal)}</td>
+                            </tr>`;
+                    });
+                } else {
+                    detailsHtml += '<tr><td colspan="4" class="text-center">No items found for this order.</td></tr>';
+                }
+
+                const apiTotal = parseFloat(data.TotalAmount || 0);
+                const apiDiscount = parseFloat(data.DiscountAmount || 0);
+                const calculatedSubtotalBeforeDiscount = apiTotal + apiDiscount;
+
+
+                detailsHtml += `
+                        </tbody>
+                    </table>
+                    <hr>
+                    <div class="row justify-content-end text-end">
+                        <div class="col-md-4">
+                            <strong>Subtotal (Calc):</strong> ${formatCurrency(calculatedSubtotalBeforeDiscount)}<br>
+                            <strong>Discount:</strong> - ${formatCurrency(apiDiscount)}<br>
+                            <strong>Final Amount:</strong> <strong>${formatCurrency(apiTotal)}</strong><br>
+                        </div>
+                    </div>`;
+                modalOrderDetailsContent.innerHTML = detailsHtml;
+
+                 // Control the visibility and state of the modal's "Mark as Paid" button
+                if (!isPaid) {
+                    modalMarkPaidBtn.style.display = 'inline-block'; // Show button
+                    modalMarkPaidBtn.disabled = false; // Enable button
+                    modalMarkPaidBtn.dataset.saleId = saleId; // Set saleId for the button
+                } else {
+                    modalMarkPaidBtn.style.display = 'none'; // Hide button if already paid
+                    modalMarkPaidBtn.disabled = true;
+                }
+
+            })
+            .catch(error => {
+                console.error('Error fetching order details:', error);
+                modalOrderDetailsContent.innerHTML = `<p class="text-danger">Error loading details: ${error.message}</p>`;
+                 modalMarkPaidBtn.style.display = 'none'; // Hide button on error
+                 modalMarkPaidBtn.disabled = true;
+            });
+    }
+
+    // --- Add Order Functions ---
+    function loadCustomers() {
+        console.log("Loading customers for select");
+        fetch('/api/customers')
+            .then(response => {
+                if (!response.ok) throw new Error(`Failed to fetch customers: ${response.status}`);
+                return response.json();
+            })
+            .then(customers => {
+                customerSelect.innerHTML = '<option value="">-- Guest Order --</option>';
+                customers.forEach(customer => {
+                    const option = document.createElement('option');
+                    option.value = customer.CustomerID;
+                    // Display Name and Phone if available
+                    const phoneText = customer.PhoneNum ? ` (${customer.PhoneNum})` : '';
+                    option.textContent = `${customer.Name}${phoneText}`;
+                    customerSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading customers:', error);
+                customerSelect.innerHTML = '<option value="">Error loading customers</option>';
+            });
+    }
+
+
+    function loadDishes() {
+        console.log("Loading dishes for order items");
+        // Fetch all dishes initially
+        fetch('/api/dishes/all') // Use the correct endpoint
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch dishes: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Received dishes data:", data);
+                // Ensure data is an array
+                 if (!Array.isArray(data)) {
+                    console.error("Expected an array of dishes, but received:", data);
+                    throw new Error("Invalid dish data format received from API.");
+                }
+                
+                allDishes = data; // Store for later use
+                if (allDishes.length === 0) {
+                    console.warn("No dishes found in the response");
+                } else {
+                    console.log(`Loaded ${allDishes.length} dishes successfully`);
+                     // Log first dish structure for debugging price fields
+                    if (allDishes[0]) {
+                         console.log("Sample dish structure:", allDishes[0]);
+                         console.log("Price fields in sample dish:", {
+                            Price: allDishes[0].Price, // Original price
+                            discount_price: allDishes[0].discount_price, // Discounted price
+                            allKeys: Object.keys(allDishes[0])
+                        });
+                    }
+                }
+                // Populate existing dish selects
+                document.querySelectorAll('.dish-select').forEach(select => {
+                    populateDishSelect(select);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading dishes:', error);
+                showToast(`Error loading dishes: ${error.message}`, 'danger');
+                // Update selects to show error
+                 document.querySelectorAll('.dish-select').forEach(select => {
+                     select.innerHTML = '<option value="">Error loading dishes</option>';
+                });
+            });
+    }
+
+
+    function populateDishSelect(select) {
+        const currentVal = select.value; // Save current selection if any
+        select.innerHTML = '<option value="">-- Select Dish --</option>';
+        if (!Array.isArray(allDishes) || allDishes.length === 0) {
+            select.innerHTML += '<option value="" disabled>No dishes available</option>';
+            return;
+        }
+
+        allDishes.forEach((dish, index) => { // Add index
+            const option = document.createElement('option');
+            option.value = dish.DishID;
+            // Display price next to name
+            const priceToShow = dish.discount_price ? dish.discount_price : dish.Price;
+            option.textContent = `${dish.Name} (${formatCurrency(priceToShow)})`;
+            option.dataset.dishIndex = index; // Use index for reliable lookup
+            select.appendChild(option);
+        });
+        select.value = currentVal; // Restore selection if possible
+    }
+
+
+    function addOrderItem() {
+        const newItem = document.createElement('div');
+        newItem.className = 'row order-item mb-2 align-items-end';
+        newItem.innerHTML = `
+            <div class="col-md-5">
+                <label class="form-label visually-hidden">Dish</label> <select class="form-select dish-select" required>
+                    <option value="">-- Select Dish --</option>
+                    </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label visually-hidden">Price</label> <input type="text" class="form-control item-price bg-light" readonly placeholder="Price"> </div>
+            <div class="col-md-2">
+                <label class="form-label visually-hidden">Quantity</label> <input type="number" class="form-control item-quantity" value="1" min="1" required placeholder="Qty"> </div>
+            <div class="col-md-2 text-end"> <button type="button" class="btn btn-outline-danger remove-item" title="Remove Item">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `;
+        // Add labels back if not using placeholders or if required by accessibility guidelines
+        // <label class="form-label">Dish</label> etc.
+
+        orderItems.appendChild(newItem);
+
+        const newSelect = newItem.querySelector('.dish-select');
+        // Populate the new select immediately if dishes are already loaded
+        if (allDishes.length > 0) {
+            populateDishSelect(newSelect);
+        } else {
+            // If dishes not loaded yet, it will be populated by loadDishes
+            console.log("Dishes not loaded yet, new item select will be populated later.");
+        }
+
+
+        attachItemEventListeners(newItem); // Attach listeners to the new item
+        calculateOrderTotal(); // Recalculate total when item is added (initially 0)
+    }
+
+
+    function attachItemEventListeners(itemRow) {
+        const dishSelect = itemRow.querySelector('.dish-select');
+        const priceInput = itemRow.querySelector('.item-price');
+        const quantityInput = itemRow.querySelector('.item-quantity');
+
+        dishSelect.addEventListener('change', function() {
+            console.log("Dish selection changed");
+            const selectedOption = this.options[this.selectedIndex];
+            if (!selectedOption || !selectedOption.value) { // Check if option exists
+                priceInput.value = '';
+                calculateOrderTotal();
+                return;
+            }
+
+            const dishIndex = selectedOption.dataset.dishIndex;
+            console.log("Selected dish index:", dishIndex);
+            if (dishIndex === undefined || dishIndex === null) {
+                console.error("Could not find dish index on selected option");
+                priceInput.value = ''; // Clear price if index missing
+                calculateOrderTotal();
+                return;
+            }
+
+            const dish = allDishes[parseInt(dishIndex)];
+            console.log("Selected dish data:", dish);
+            if (!dish) {
+                console.error("Could not find dish data using index:", dishIndex);
+                priceInput.value = ''; // Clear price if dish data missing
+                calculateOrderTotal();
+                return;
+            }
+
+            // Determine the price to use (discount or regular)
+            let price = 0;
+            if (dish.discount_price !== undefined && dish.discount_price !== null) {
+                 price = parseFloat(dish.discount_price);
+                 console.log("Using discount price:", price);
+            } else if (dish.Price !== undefined && dish.Price !== null) {
+                 price = parseFloat(dish.Price);
+                 console.log("Using regular price:", price);
+            } else {
+                 console.warn("Could not find price for dish:", dish);
+                 // Handle missing price (e.g., set to 0 or show error)
+                 price = 0; // Example: default to 0
+            }
+
+
+            priceInput.value = formatCurrency(price);
+            // Store the raw price in dataset for calculation
+            priceInput.dataset.unitPrice = price;
+            console.log("Set price input value:", priceInput.value, "and dataset.unitPrice:", priceInput.dataset.unitPrice);
+
+            calculateOrderTotal();
+        });
+
+        quantityInput.addEventListener('input', calculateOrderTotal);
+        quantityInput.addEventListener('change', calculateOrderTotal); // Also calculate on change (e.g., using arrows)
+
+
+        const removeBtn = itemRow.querySelector('.remove-item');
+        if (removeBtn) { // Ensure remove button exists
+            removeBtn.addEventListener('click', function() {
+                 // Only remove if there's more than one item, otherwise just clear it
+                 if (orderItems.children.length > 1) {
+                     itemRow.remove();
+                 } else {
+                     // Clear the fields of the last remaining item
+                     dishSelect.value = "";
+                     priceInput.value = "";
+                     priceInput.dataset.unitPrice = "0";
+                     quantityInput.value = "1";
+                     showToast("Cannot remove the last item. Clear fields instead.", "info");
+                 }
+                calculateOrderTotal();
+            });
+        }
+    }
+
+    function calculateOrderTotal() {
+        console.log("Calculating order total...");
+        let subtotal = 0;
+        let isValid = true; // Flag to check if all items with quantity have a price
+
+        document.querySelectorAll('.order-item').forEach((itemRow, index) => {
+            const priceInput = itemRow.querySelector('.item-price');
+            const quantityInput = itemRow.querySelector('.item-quantity');
+            const dishSelect = itemRow.querySelector('.dish-select');
+
+
+            const quantity = parseInt(quantityInput.value || 0);
+            // Only process items where a dish is selected or quantity is entered
+            if (dishSelect.value || quantity > 0) {
+                let unitPrice = parseFloat(priceInput.dataset.unitPrice || 0);
+
+                // If unit price is 0 but a dish is selected, log a warning (might indicate price data issue)
+                 if (unitPrice === 0 && dishSelect.value) {
+                     console.warn(`Item #${index + 1}: Unit price is 0 for selected dish ${dishSelect.value}. Check dish data.`);
+                 }
+
+                // If quantity is > 0 but no dish/price is set, mark as invalid
+                 if (quantity > 0 && !dishSelect.value) {
+                     console.warn(`Item #${index + 1}: Quantity entered but no dish selected.`);
+                     // Optionally add visual feedback to the user
+                     // itemRow.classList.add('is-invalid'); 
+                     isValid = false; 
+                 } else {
+                    // itemRow.classList.remove('is-invalid');
+                 }
+
+                const itemTotal = unitPrice * quantity;
+                console.log(`Item #${index+1} - UnitPrice: ${unitPrice}, Quantity: ${quantity}, ItemTotal: ${itemTotal}`);
+                subtotal += itemTotal;
+            }
+        });
+
+        console.log("Calculated Subtotal:", subtotal);
+        orderSubtotal.textContent = formatCurrency(subtotal);
+
+        const discount = parseFloat(discountAmount.value || 0);
+        console.log("Discount Amount:", discount);
+
+        if (discount > subtotal && subtotal > 0) {
+             console.warn("Discount amount exceeds subtotal.");
+             showToast("Discount cannot be greater than the subtotal.", "warning");
+             // Optionally reset discount or cap it
+             // discountAmount.value = subtotal.toFixed(2); 
+             // discount = subtotal;
+        }
+
+
+        const total = Math.max(0, subtotal - discount); // Ensure total is not negative
+        console.log("Final Total:", total);
+        orderTotal.textContent = formatCurrency(total);
+
+        // Enable/disable save button based on validity
+        saveOrderBtn.disabled = !isValid || subtotal <= 0; // Disable if invalid items or subtotal is 0
+
+
+    }
+
+    function saveOrder() {
+        const orderType = document.getElementById('orderType').value;
+        const orderChannel = document.getElementById('orderChannel').value;
+        const paymentCompleted = paymentCompletedCheck.checked; // Get checkbox state
+
+        if (!orderType || !orderChannel) {
+            showToast('Please select an order type and channel.', 'warning');
+            return;
+        }
+
+        const items = [];
+        let isValid = true;
+        let hasItems = false; // Flag to check if at least one valid item exists
+
+        document.querySelectorAll('.order-item').forEach((itemRow, index) => {
+            const dishSelect = itemRow.querySelector('.dish-select');
+            const quantityInput = itemRow.querySelector('.item-quantity');
+            const priceInput = itemRow.querySelector('.item-price'); // Needed for final check
+
+            const dishId = dishSelect.value;
+            const quantity = parseInt(quantityInput.value || 0);
+
+            // Consider an item valid only if a dish is selected AND quantity > 0
+            if (dishId && quantity > 0) {
+                 // Double check if price was actually set (dataset.unitPrice should exist)
+                 const unitPrice = parseFloat(priceInput.dataset.unitPrice);
+                 if (isNaN(unitPrice)) {
+                     console.error(`Item #${index + 1}: Invalid unit price for selected dish ${dishId}.`);
+                     showToast(`Error with price for item #${index + 1}. Please re-select the dish.`, 'danger');
+                     isValid = false;
+                     return; // Stop processing this item
+                 }
+
+                hasItems = true; // At least one valid item
+                items.push({
+                    dish_id: parseInt(dishId),
+                    quantity: quantity
+                    // No need to send price, backend should verify price based on dish_id
+                });
+            } else if (dishId || quantity > 0) {
+                // If only one field is filled (e.g., dish selected but quantity 0, or quantity > 0 but no dish)
+                console.warn(`Item #${index + 1} is incomplete (Dish: ${dishId}, Qty: ${quantity}). It will be ignored.`);
+                // Optionally add validation feedback to the row
+                // itemRow.classList.add('is-invalid'); 
+                // isValid = false; // Decide if incomplete rows should block saving
+            }
+        });
+
+        if (!hasItems) {
+            showToast('Please add at least one valid item (with dish and quantity > 0) to the order.', 'warning');
+            return;
+        }
+
+        if (!isValid) { // If any item had an error (like missing price)
+            showToast('Please correct the errors in the order items before saving.', 'warning');
+            return;
+        }
+
+
+        const orderData = {
+            customer_id: customerSelect.value || null, // Send null for guest
+            order_type: orderType,
+            channel: orderChannel,
+            discount_amount: parseFloat(discountAmount.value) || 0,
+            items: items,
+            payment_completed: paymentCompleted // Send payment status
+        };
+
+        console.log('Saving order data:', JSON.stringify(orderData, null, 2)); // Log the exact payload
+
+        // Disable save button and show spinner
+        saveOrderBtn.disabled = true;
+        saveOrderBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Saving...';
+
+        fetch('/api/orders/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json' // Explicitly accept JSON
+                },
+                body: JSON.stringify(orderData)
+            })
+            .then(async response => { // Use async to easily await response.text() or .json()
+                console.log('Create order response status:', response.status);
+                const responseText = await response.text(); // Get raw text first
+                console.log('Raw response text:', responseText);
+
+                let data = {};
+                try {
+                    if (responseText) {
+                         data = JSON.parse(responseText); // Try parsing JSON
+                         console.log('Parsed response data:', data);
+                    }
+                } catch (e) {
+                    console.error("Failed to parse response JSON:", e);
+                     // If parsing fails but status is OK (e.g., 201 Created with no body), handle it
+                    if (response.ok) {
+                        console.warn("Response was OK, but JSON parsing failed. Assuming success based on status.");
+                         return { message: "Order created (empty response body)." }; // Return a default success object
+                    } else {
+                        // If parsing fails and status is not OK, throw error with raw text
+                        throw new Error(`Server returned non-JSON error: ${responseText}`);
+                    }
+                }
+                
+                if (!response.ok) {
+                    // Try to get error from parsed data, fallback to raw text or status
+                    const errorMsg = data.error || data.message || `HTTP ${response.status}`;
+                    console.error('Server error:', errorMsg);
+                    throw new Error(errorMsg);
+                }
+                return data; // Return parsed data
+            })
+            .then(result => {
+                console.log('Order created successfully, details:', result);
+                // Ensure result.sale exists before accessing its properties
+                const saleId = result.sale?.SaleID;
+                const paymentStatus = result.sale?.PaymentCompleted; 
+
+                if (saleId) {
+                    console.log('New order ID:', saleId);
+                    console.log('New order payment status:', paymentStatus); // Log payment status
+                    // Store the new order ID to highlight it in the list
+                    window.lastCreatedOrderId = saleId;
+                } else {
+                     console.warn("Response did not contain sale details (sale.SaleID).");
+                }
+
+                // Show success message
+                showToast(`Order #${saleId || 'New'} created successfully!`, 'success');
+
+                addOrderModal.hide();
+                resetOrderForm(); // Reset the form
+
+                // Force refresh order list to show the new order at the top
+                console.log('Requesting order list refresh...');
+                fetchOrders(1, true); // Go to first page, force refresh
+            })
+            .catch(error => {
+                console.error('Error creating order:', error);
+                showToast(`Error creating order: ${error.message}`, 'danger');
+            })
+            .finally(() => {
+                // Re-enable save button
+                saveOrderBtn.disabled = false;
+                saveOrderBtn.innerHTML = 'Save Order';
+            });
+    }
+    function resetOrderForm() {
+        document.getElementById('addOrderForm').reset(); // Resets most form elements
+        
+        // Specifically reset selects and calculated fields
+        customerSelect.value = ''; 
+        document.getElementById('orderType').value = '';
+        document.getElementById('orderChannel').value = '';
+        discountAmount.value = '0'; // Reset discount input
+        paymentCompletedCheck.checked = false; // Uncheck payment box
+
+        // Remove all but the first order item row and reset it
+        orderItems.innerHTML = ''; // Clear all items first
+        addOrderItem(); // Add back one empty item row
+
+        // Recalculate totals (should be $0.00)
+        calculateOrderTotal(); 
+    }
+
+    // --- Event Listeners ---
+    console.log("Setting up event listeners..."); // DEBUG
+    filterForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        console.log("Filter form submitted."); // DEBUG
+        fetchOrders(1); // Fetch first page with new filters
+    });
+
+    paginationControls.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (e.target.tagName === 'A' && e.target.hasAttribute('data-page')) {
+            const pageLink = e.target;
+            const page = parseInt(pageLink.getAttribute('data-page'));
+            // Check if the link is part of a disabled item
+            if (!isNaN(page) && !pageLink.closest('.page-item.disabled') && !pageLink.closest('.page-item.active')) {
+                 console.log(`Pagination link clicked for page: ${page}`); // DEBUG
+                 fetchOrders(page);
+            }
+        }
+    });
+
+    // Consolidated event listener for table body clicks
+    ordersTableBody.addEventListener('click', (e) => {
+        const viewButton = e.target.closest('.view-details');
+        const markPaidButton = e.target.closest('.mark-paid-btn:not(.disabled)'); // Target only enabled paid buttons
+        const statusActionButton = e.target.closest('.status-action'); // For dropdown status changes
+
+        if (viewButton) {
+            const saleId = viewButton.dataset.saleId;
+            console.log(`View details button clicked for Sale ID: ${saleId}`);
+            if (saleId) showOrderDetails(saleId);
+        } else if (markPaidButton) {
+            const saleId = markPaidButton.dataset.saleId;
+            console.log(`Mark as Paid button clicked for Sale ID: ${saleId}`);
+            if (saleId && confirm(`Are you sure you want to mark order #${saleId} as paid?`)) {
+                 markOrderAsPaid(saleId, markPaidButton);
+            }
+        } else if (statusActionButton) {
+             // Handle status changes from dropdown (already covered in document listener below, but could be consolidated here)
+             // const saleId = statusActionButton.dataset.saleId;
+             // const newStatus = statusActionButton.dataset.status;
+             // if (saleId && newStatus) updateOrderStatus(saleId, newStatus);
+        }
+    });
+
+    addOrderBtn.addEventListener('click', () => {
+        console.log("Add Order button clicked");
+        resetOrderForm(); // Ensure form is reset
+        // Load customers and dishes if not already loaded or if needed
+        // Consider loading them only once unless data changes often
+        if (customerSelect.options.length <= 1) loadCustomers(); // Load if empty
+        if (allDishes.length === 0) loadDishes(); // Load if empty
+
+        // Ensure at least one item row exists after reset
+        if (orderItems.children.length === 0) {
+            addOrderItem();
+        }
+        addOrderModal.show();
+    });
+
+    addItemBtn.addEventListener('click', addOrderItem);
+
+    discountAmount.addEventListener('input', calculateOrderTotal);
+    discountAmount.addEventListener('change', calculateOrderTotal); // Handle spinner changes etc.
+
+    saveOrderBtn.addEventListener('click', saveOrder);
+
+    // Attach listeners to the initial order item row
+    document.querySelectorAll('.order-item').forEach(item => {
+        attachItemEventListeners(item);
+    });
+
+    addOrderModalElement.addEventListener('show.bs.modal', () => {
+        // Optional: Reset form or ensure initial state when modal is shown
+        // resetOrderForm(); // Uncomment if you want a fresh form every time
+        // Ensure at least one item exists when modal opens
+        if (orderItems.children.length === 0) {
+             addOrderItem();
+        }
+        calculateOrderTotal(); // Ensure totals are correct when modal shows
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log("DOM fully loaded and parsed. Calling initial fetchOrders(1)."); // DEBUG
+        // Ensure toast container exists
+        if (!document.querySelector('.toast-container')) {
+             const toastContainer = document.createElement('div');
+             toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3'; // Adjusted position
+             document.body.appendChild(toastContainer);
+        }
+        fetchOrders(1); // Initial load
+        console.log("Initial fetchOrders(1) called."); // DEBUG
+    });
+
+    // Event listener for status update actions (dropdown in table and buttons in modal)
+    document.addEventListener('click', function(e) {
+        // Table dropdown status actions
+        const statusActionItem = e.target.closest('.status-action');
+        if (statusActionItem) {
+            const saleId = statusActionItem.dataset.saleId;
+            const newStatus = statusActionItem.dataset.status;
+            if (saleId && newStatus) {
+                 console.log(`Dropdown status change: Order ${saleId} to ${newStatus}`);
+                 updateOrderStatus(saleId, newStatus);
+            }
+        }
+
+        // Modal status buttons
+        const modalStatusButton = e.target.closest('.modal-status-btn');
+        if (modalStatusButton) {
+             const saleId = modalStatusButton.dataset.saleId;
+             const newStatus = modalStatusButton.dataset.status;
+             if (saleId && newStatus && !modalStatusButton.classList.contains('active')) { // Only act if not already active
+                console.log(`Modal status change: Order ${saleId} to ${newStatus}`);
+                 updateOrderStatus(saleId, newStatus, true); // Pass true for isFromModal
+             }
+        }
+
+        // Modal Mark Paid Button
+        const modalPaidBtn = e.target.closest('#modalMarkPaidBtn');
+        if (modalPaidBtn && !modalPaidBtn.disabled) {
+             const saleId = modalPaidBtn.dataset.saleId;
+             console.log(`Modal Mark as Paid button clicked for Sale ID: ${saleId}`);
+             if (saleId && confirm(`Are you sure you want to mark order #${saleId} as paid?`)) {
+                 markOrderAsPaid(saleId, modalPaidBtn);
+                 // Optionally close the modal after marking as paid
+                 // orderDetailsModal.hide(); 
+             }
+        }
+    });
+
+    // Function to update order status
+    function updateOrderStatus(saleId, newStatus, isFromModal = false) {
+        console.log(`Updating order ${saleId} status to ${newStatus}`);
+
+        let buttonToSpin = null;
+        let originalButtonHtml = '';
+
+        if (isFromModal) {
+            buttonToSpin = document.querySelector(`.modal-status-btn[data-sale-id="${saleId}"][data-status="${newStatus}"]`);
+        } else {
+            // Find the dropdown toggle button for the specific row
+             const row = ordersTableBody.querySelector(`tr[data-sale-id="${saleId}"]`);
+             if (row) {
+                 buttonToSpin = row.querySelector('.dropdown-toggle');
+             }
+        }
+
+        // Show spinner on button if applicable
+        if (buttonToSpin) {
+            originalButtonHtml = buttonToSpin.innerHTML;
+            buttonToSpin.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Updating...';
+            buttonToSpin.disabled = true;
+            // Disable all buttons in the group if it's the modal
+            if (isFromModal) {
+                 document.querySelectorAll('.modal-status-btn').forEach(btn => btn.disabled = true);
+            }
+        }
+
+        fetch(`/api/orders/${saleId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status: newStatus })
+            })
+            .then(response => {
+                 if (!response.ok) {
+                    return response.json().then(data => {
+                         throw new Error(data.error || 'Failed to update status');
+                     });
+                 }
+                 return response.json();
+             })
+            .then(data => {
+                console.log('Status updated successfully:', data);
+                showToast(`Order #${saleId} status updated to ${newStatus}`, 'success');
+
+                // Update UI based on where the action was triggered
+                if (isFromModal) {
+                    // Update the modal UI (status badge and button active state)
+                    const statusBadge = document.getElementById('modal-status-badge');
+                    if (statusBadge) {
+                        statusBadge.className = `badge ${getBadgeClass(newStatus)}`;
+                        statusBadge.textContent = newStatus;
+                    }
+                    document.querySelectorAll('.modal-status-btn').forEach(btn => {
+                         btn.classList.remove('active');
+                         if (btn.dataset.status === newStatus) {
+                             btn.classList.add('active');
+                         }
+                    });
+                } else {
+                     // Update the status badge in the table row directly
+                     const row = ordersTableBody.querySelector(`tr[data-sale-id="${saleId}"]`);
+                     if (row) {
+                        const statusCell = row.querySelector('td:nth-child(10)'); // 10th cell is Status
+                        if (statusCell) {
+                             statusCell.innerHTML = `<span class="badge ${getBadgeClass(newStatus)}">${newStatus}</span>`;
+                         }
+                     }
+                 }
+
+                // Optionally refresh the whole table data instead of direct manipulation
+                // fetchOrders(currentPage); 
+
+                // If dashboard is open in another tab, tell it to refresh (using localStorage)
+                try {
+                    localStorage.setItem('orderStatusUpdated', Date.now().toString());
+                 } catch (e) {
+                     console.warn("LocalStorage not available for cross-tab communication.");
+                 }
+            })
+            .catch(error => {
+                console.error('Error updating status:', error);
+                showToast(`Failed to update status: ${error.message}`, 'danger');
+            })
+            .finally(() => {
+                 // Restore button state
+                 if (buttonToSpin) {
+                     buttonToSpin.innerHTML = originalButtonHtml;
+                     buttonToSpin.disabled = false;
+                 }
+                 // Re-enable all modal buttons if action was from modal
+                 if (isFromModal) {
+                     document.querySelectorAll('.modal-status-btn').forEach(btn => btn.disabled = false);
+                 }
+            });
+    }
+
+
+    // --- NEW FUNCTION TO MARK AS PAID (Shared by table button and modal button) ---
+    function markOrderAsPaid(saleId, buttonElement) {
+        console.log(`Sending request to mark order ${saleId} as paid.`);
+
+        // Disable button and show spinner
+        const isModalButton = buttonElement.id === 'modalMarkPaidBtn';
+        buttonElement.disabled = true;
+        const originalButtonHtml = buttonElement.innerHTML;
+        buttonElement.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Paying...';
+
+        fetch(`/api/orders/${saleId}/mark_paid`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Failed to mark order as paid');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Mark paid successful:', data);
+            showToast(`Order #${saleId} marked as paid successfully!`, 'success');
+
+            // Update UI: Disable button, change title
+            buttonElement.classList.add('disabled');
+            buttonElement.disabled = true;
+            buttonElement.title = 'Already Paid';
+            buttonElement.innerHTML = originalButtonHtml; // Restore original content (like icon)
+
+            // Update the specific row in the table
+            const row = ordersTableBody.querySelector(`tr[data-sale-id="${saleId}"]`);
+            if (row) {
+                const paymentCell = row.querySelector('.payment-status-cell'); // Target the payment cell
+                if (paymentCell) {
+                    paymentCell.innerHTML = getPaymentBadge(true); // Update badge to 'Paid'
+                }
+                row.classList.remove('table-row-unpaid');
+                row.classList.add('table-row-paid'); // Update row style
+
+                // Also disable the corresponding button in the table if it exists
+                const tablePaidButton = row.querySelector(`.mark-paid-btn[data-sale-id="${saleId}"]`);
+                if (tablePaidButton) {
+                    tablePaidButton.classList.add('disabled');
+                    tablePaidButton.disabled = true;
+                    tablePaidButton.title = 'Already Paid';
+                }
+            }
+
+            // If the action was triggered from the modal, update modal UI too
+            if (isModalButton) {
+                 const modalPaymentBadge = document.getElementById('modal-payment-badge');
+                 if (modalPaymentBadge) {
+                     modalPaymentBadge.className = 'badge bg-success';
+                     modalPaymentBadge.textContent = 'Paid';
+                 }
+                 // Hide the modal button as it's now paid
+                 buttonElement.style.display = 'none';
+             }
+
+            // Optionally, reload the table to ensure full consistency
+            // fetchOrders(currentPage);
+
+        })
+        .catch(error => {
+            console.error('Error marking order as paid:', error);
+            showToast(`Error marking paid: ${error.message}`, 'danger');
+            // Restore button state on error
+            buttonElement.disabled = false;
+            buttonElement.innerHTML = originalButtonHtml;
+        });
+    }
+    // --- END NEW FUNCTION ---
+
+    // Toast notification function (ensure only one definition)
+    function showToast(message, type = 'info') {
+        const toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+             console.error("Toast container not found!");
+             alert(message); // Fallback alert
+             return;
+         }
+
+        const toast = document.createElement('div');
+        const toastId = 'toast-' + Date.now();
+
+        toast.className = `toast align-items-center text-white bg-${type} border-0`;
+        toast.id = toastId;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+
+        toastContainer.appendChild(toast);
+
+        const bsToast = new bootstrap.Toast(toast, {
+            autohide: true,
+            delay: 5000 // Increased delay to 5 seconds
+        });
+
+        bsToast.show();
+
+        // Remove the toast element after it's hidden
+        toast.addEventListener('hidden.bs.toast', function() {
+            if (toast.parentNode === toastContainer) { // Check if still attached
+                toastContainer.removeChild(toast);
+             }
+        });
+    }
+
+    console.log("orders_management.html script block finished."); // DEBUG
+</script>
+{% endblock %}

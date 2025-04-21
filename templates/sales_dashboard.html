@@ -1,0 +1,395 @@
+{% extends "layout.html" %} {% block page_title %}Sales Dashboard{% endblock %} {% block extra_css %}
+<style>
+    .kpi-card {
+        padding: 1.5rem;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+    
+    .kpi-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .kpi-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 0.5rem 0;
+    }
+    
+    .kpi-label {
+        color: #6c757d;
+        font-size: 1rem;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-top: 1rem;
+    }
+    
+    .change-indicator {
+        font-size: 0.8rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 10px;
+    }
+    
+    .change-up {
+        background-color: rgba(40, 167, 69, 0.1);
+        color: #28a745;
+    }
+    
+    .change-down {
+        background-color: rgba(220, 53, 69, 0.1);
+        color: #dc3545;
+    }
+</style>
+{% endblock %} {% block page_header %}Sales Dashboard{% endblock %} {% block content %}
+<!-- KPI Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card kpi-card h-100 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <span class="text-muted">Today's Sales</span>
+                <h2 class="kpi-value">${{ "%.2f"|format(dashboard_data.today_sales|default(0.00, true)) }}</h2>
+                <span id="todaySalesChange" class="change-indicator">-</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card kpi-card h-100 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <span class="text-muted">Monthly Sales</span>
+                <h2 class="kpi-value">${{ "%.2f"|format(dashboard_data.monthly_sales|default(0.00, true)) }}</h2>
+                <span id="monthlySalesChange" class="change-indicator">-</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card kpi-card h-100 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <span class="text-muted">Today's Orders</span>
+                <h2 class="kpi-value">{{ dashboard_data.today_orders|default(0, true) }}</h2>
+                <span id="ordersCountChange" class="change-indicator">-</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sales Trend Chart -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0">
+                <h5 class="card-title mb-0">Sales Trend (Last 30 Days)</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="salesTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Peak Hours Chart -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0">
+                <h5 class="card-title mb-0">Peak Hours Analysis</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="peakHoursChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Sales Records -->
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recent Sales Records</h5>
+                <a href="{{ url_for('order_bp.orders_management') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Date</th>
+                                <th>Customer</th>
+                                <th>Items</th>
+                                <th>Channel</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentSalesTable">
+                            {% if dashboard_data.recent_sales %} {% for sale in dashboard_data.recent_sales %}
+                            <tr>
+                                <td>{{ sale.SaleID }}</td>
+                                <td>{{ sale.SaleDate }}</td>
+                                <td>{{ sale.CustomerName }}</td>
+                                <td>
+                                    {% if sale.items and sale.items is not string and sale.items is iterable %} {% set display_items = sale.items[:2] if sale.items|length > 0 else [] %} {% for item in display_items %} {{ item.Name if item.Name is defined else item.DishName if item.DishName
+                                    is defined else 'Unknown Item' }} ({{ item.Quantity if item.Quantity is defined else 1 }}){% if not loop.last %}, {% endif %} {% endfor %} {% if sale.items|length > 2 %}...{% endif %} {% else %} - {% endif %}
+                                </td>
+                                <td>{{ sale.Channel or '-' }}</td>
+                                <td>{{ sale.OrderType or '-' }}</td>
+                                <td>${{ sale.TotalAmount }}</td>
+                                <td>
+                                    {% if sale.Status == 'Completed' %}
+                                    <span class="badge bg-success">Completed</span> {% elif sale.Status == 'Pending' %}
+                                    <span class="badge bg-warning text-dark">Pending</span> {% else %}
+                                    <span class="badge bg-secondary">{{ sale.Status }}</span> {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary view-sale" data-sale-id="{{ sale.SaleID }}">
+                                            View
+                                        </button>
+                                </td>
+                            </tr>
+                            {% endfor %} {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center py-4">Loading sales data...</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Global chart instances
+    let salesTrendChart = null;
+    let peakHoursChart = null;
+
+    // Format currency values
+    function formatCurrency(value) {
+        return '$' + parseFloat(value).toFixed(2);
+    }
+
+    // Format date and time
+    function formatDateTime(dateStr) {
+        if (!dateStr) return 'N/A';
+        const date = new Date(dateStr);
+        return date.toLocaleString();
+    }
+
+    // Update change indicator on KPI cards
+    function updateChangeIndicator(elementId, value) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            if (value === null || value === undefined) {
+                element.textContent = '-';
+                element.className = 'change-indicator';
+            } else {
+                const isPositive = value >= 0;
+                element.textContent = (isPositive ? '↑ ' : '↓ ') + Math.abs(value).toFixed(1) + '%';
+                element.className = 'change-indicator ' + (isPositive ? 'change-up' : 'change-down');
+            }
+        }
+    }
+
+    // Render sales trend chart
+    function renderSalesTrendChart(data) {
+        const ctx = document.getElementById('salesTrendChart').getContext('2d');
+
+        // Destroy existing chart instance (if any)
+        if (salesTrendChart) {
+            salesTrendChart.destroy();
+        }
+
+        salesTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.dates,
+                datasets: [{
+                    label: 'Sales',
+                    data: data.sales,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return formatCurrency(context.raw);
+                            }
+                        }
+                    },
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return formatCurrency(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Render peak hours chart
+    function renderPeakHoursChart(data) {
+        const ctx = document.getElementById('peakHoursChart').getContext('2d');
+
+        // Destroy existing chart instance (if any)
+        if (peakHoursChart) {
+            peakHoursChart.destroy();
+        }
+
+        peakHoursChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.hours,
+                datasets: [{
+                    label: 'Order Count',
+                    data: data.counts,
+                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Load dashboard data
+    function loadDashboardData() {
+        // Load sales summary data
+        fetch('/api/dashboard/sales_summary')
+            .then(response => response.ok ? response.json() : Promise.reject('Failed to load sales summary'))
+            .then(data => {
+                // Update change indicators
+                updateChangeIndicator('todaySalesChange', data.today_growth);
+                updateChangeIndicator('monthlySalesChange', data.monthly_growth);
+                updateChangeIndicator('ordersCountChange', data.orders_growth);
+                updateChangeIndicator('avgOrderChange', data.avg_growth);
+            })
+            .catch(error => console.error('Error loading sales summary data:', error));
+
+        // Load sales trend data
+        fetch('/api/sales/trend')
+            .then(response => response.ok ? response.json() : Promise.reject('Failed to load sales trend'))
+            .then(data => renderSalesTrendChart(data))
+            .catch(error => console.error('Error loading sales trend data:', error));
+
+        // Load peak hours data
+        fetch('/api/sales/peak_hours')
+            .then(response => response.ok ? response.json() : Promise.reject('Failed to load peak hours'))
+            .then(data => renderPeakHoursChart(data))
+            .catch(error => console.error('Error loading peak hours data:', error));
+
+        // Load recent sales data
+        fetch('/api/orders/all?per_page=5')
+            .then(response => response.ok ? response.json() : Promise.reject('Failed to load recent sales'))
+            .then(data => {
+                const tableBody = document.getElementById('recentSalesTable');
+                if (tableBody && (!data || !data.sales || data.sales.length === 0)) {
+                    tableBody.innerHTML = '<tr><td colspan="9" class="text-center py-4">No sales records available</td></tr>';
+                } else if (tableBody && data.sales) {
+                    // 清空表格
+                    tableBody.innerHTML = '';
+
+                    // 填充数据
+                    data.sales.forEach(sale => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>#${sale.SaleID}</td>
+                            <td>${sale.CustomerName || 'Guest'}</td>
+                            <td>${formatDateTime(sale.SaleDate)}</td>
+                            <td>${sale.OrderType || 'N/A'}</td>
+                            <td>${sale.Channel || 'N/A'}</td>
+                            <td>$${parseFloat(sale.TotalAmount).toFixed(2)}</td>
+                            <td>${renderStatusBadge(sale.Status)}</td>
+                            <td>
+                                <button class="btn btn-sm btn-info view-sale" data-sale-id="${sale.SaleID}">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                }
+            })
+            .catch(error => console.error('Error loading recent sales data:', error));
+    }
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initial data load
+        loadDashboardData();
+
+        // Set automatic refresh (every 30 seconds)
+        setInterval(loadDashboardData, 30000);
+
+        // Event listener: View sale details
+        document.body.addEventListener('click', function(e) {
+            if (e.target.classList.contains('view-sale')) {
+                const saleId = e.target.getAttribute('data-sale-id');
+                if (saleId) {
+                    // Logic for viewing sale details can be implemented here
+                    console.log('View Sale ID:', saleId);
+                    // Example: open a modal window or navigate to details page
+                }
+            }
+        });
+    });
+
+    // 渲染状态标签
+    function renderStatusBadge(status) {
+        const statusClasses = {
+            'Pending': 'bg-warning',
+            'Processing': 'bg-info',
+            'Completed': 'bg-success',
+            'Delivered': 'bg-primary',
+            'Cancelled': 'bg-danger',
+            'default': 'bg-secondary'
+        };
+        const badgeClass = statusClasses[status] || statusClasses.default;
+        return `<span class="badge ${badgeClass}">${status}</span>`;
+    }
+</script>
+{% endblock %}

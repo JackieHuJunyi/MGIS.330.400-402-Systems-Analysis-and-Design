@@ -1,0 +1,913 @@
+{% extends "layout.html" %}
+{% block page_title %}Customer Insights{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- ───────── Customer Feedback Analysis ───────── -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">Customer Feedback Analysis</div>
+            <div class="card-body text-center">
+                <!-- 平均分 -->
+                <div class="display-4 fw-bold" id="avgRating">0.0</div>
+                <!-- 动态星星 -->
+                <div class="star-rating mb-1" id="avgStars"></div>
+                <!-- 评论总数 -->
+                <div class="text-muted mb-4" id="totalReviews">Based on recent 0 reviews</div>
+
+                <!-- 星级分布条 -->
+                {% for s in range(5,0,-1) %}
+                <div class="d-flex align-items-center mb-2">
+                    <span class="me-2">{{ s }} star{{ 's' if s>1 else '' }}</span>
+                    <div class="progress flex-grow-1" style="height:10px;">
+                        <div class="progress-bar"
+                             id="bar{{ s }}"
+                             style="width:0%;"
+                             aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <span class="ms-2" id="pct{{ s }}">0%</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ───────── Recent Comments ───────── -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">Recent Comments</div>
+            <div class="card-body" id="commentContainer" style="max-height:70vh; overflow:auto;">
+                <!-- 评论由 JS 插入 -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ──────────────────────────────────────────────────────
+// 100 条固定反馈数据，直接前端定义
+// ──────────────────────────────────────────────────────
+const reviews = [
+  {
+    "FeedbackID": 1,
+    "Rating": 5,
+    "Comment": "The mountain pizza is very delicious, and the cheese brushed is amazing!",
+    "CreateTime": "2025/1/1",
+    "CustomerID": 12,
+    "SalesID": 1
+  },
+  {
+    "FeedbackID": 2,
+    "Rating": 4,
+    "Comment": "The mountain pizza tastes good, but delivery is slightly slower.",
+    "CreateTime": "2025/1/2",
+    "CustomerID": 5,
+    "SalesID": 2
+  },
+  {
+    "FeedbackID": 3,
+    "Rating": 5,
+    "Comment": "The mountain pizza is crispy on the outside and soft on the inside, with rich ingredients. I am very satisfied!",
+    "CreateTime": "2025/1/3",
+    "CustomerID": 18,
+    "SalesID": 3
+  },
+  {
+    "FeedbackID": 4,
+    "Rating": 3,
+    "Comment": "The mountain pizza is a bit salty, I will try other flavors next time.",
+    "CreateTime": "2025/1/4",
+    "CustomerID": 7,
+    "SalesID": 4
+  },
+  {
+    "FeedbackID": 5,
+    "Rating": 5,
+    "Comment": "The mountain pizza is plentiful and delicious, highly recommended!",
+    "CreateTime": "2025/1/5",
+    "CustomerID": 23,
+    "SalesID": 5
+  },
+  {
+    "FeedbackID": 6,
+    "Rating": 4,
+    "Comment": "The base of the mountain pizza is very thin, but the taste is good.",
+    "CreateTime": "2025/1/6",
+    "CustomerID": 11,
+    "SalesID": 6
+  },
+  {
+    "FeedbackID": 7,
+    "Rating": 5,
+    "Comment": "The mountain pizza is very fresh and the delivery speed is also very fast, like it!",
+    "CreateTime": "2025/1/7",
+    "CustomerID": 9,
+    "SalesID": 7
+  },
+  {
+    "FeedbackID": 8,
+    "Rating": 2,
+    "Comment": "The taste of the mountain pizza is average, and the ingredients are not rich enough.",
+    "CreateTime": "2025/1/8",
+    "CustomerID": 2,
+    "SalesID": 8
+  },
+  {
+    "FeedbackID": 9,
+    "Rating": 5,
+    "Comment": "The mountain pizza is very delicious, especially the seafood flavor!",
+    "CreateTime": "2025/1/9",
+    "CustomerID": 16,
+    "SalesID": 9
+  },
+  {
+    "FeedbackID": 10,
+    "Rating": 4,
+    "Comment": "The portion size of the mountain pizza is moderate and the taste is good.",
+    "CreateTime": "2025/1/10",
+    "CustomerID": 24,
+    "SalesID": 10
+  },
+  {
+    "FeedbackID": 11,
+    "Rating": 5,
+    "Comment": "The mountain pizza and cheese are plentiful, and the taste is great!",
+    "CreateTime": "2025/1/11",
+    "CustomerID": 19,
+    "SalesID": 11
+  },
+  {
+    "FeedbackID": 12,
+    "Rating": 3,
+    "Comment": "The mountain pizza is a bit dry, I hope it can be improved next time.",
+    "CreateTime": "2025/1/12",
+    "CustomerID": 3,
+    "SalesID": 12
+  },
+  {
+    "FeedbackID": 13,
+    "Rating": 5,
+    "Comment": "The mountain pizza is very delicious, especially the Italian sausage flavor!",
+    "CreateTime": "2025/1/13",
+    "CustomerID": 21,
+    "SalesID": 13
+  },
+  {
+    "FeedbackID": 14,
+    "Rating": 4,
+    "Comment": "The mountain pizza tastes good, but the price is slightly higher.",
+    "CreateTime": "2025/1/14",
+    "CustomerID": 8,
+    "SalesID": 14
+  },
+  {
+    "FeedbackID": 15,
+    "Rating": 5,
+    "Comment": "The mountain pizza is very delicious, especially the mushroom pizza!",
+    "CreateTime": "2025/1/15",
+    "CustomerID": 15,
+    "SalesID": 15
+  },
+  {
+    "FeedbackID": 16,
+    "Rating": 4,
+    "Comment": "The mountain pizza tastes good, but there can be more ingredients.",
+    "CreateTime": "2025/1/16",
+    "CustomerID": 1,
+    "SalesID": 16
+  },
+  {
+    "FeedbackID": 17,
+    "Rating": 5,
+    "Comment": "The fried chicken in the mountain pizza is very crispy and pairs perfectly with pizza!",
+    "CreateTime": "2025/1/17",
+    "CustomerID": 13,
+    "SalesID": 17
+  },
+  {
+    "FeedbackID": 18,
+    "Rating": 4,
+    "Comment": "The taste of the mountain pizza is good, but the drink is a bit sweet.",
+    "CreateTime": "2025/1/18",
+    "CustomerID": 28,
+    "SalesID": 18
+  },
+  {
+    "FeedbackID": 19,
+    "Rating": 5,
+    "Comment": "The service attitude of Shanshan Pizza is very good and deserves praise!",
+    "CreateTime": "2025/1/19",
+    "CustomerID": 6,
+    "SalesID": 19
+  },
+  {
+    "FeedbackID": 20,
+    "Rating": 3,
+    "Comment": "The fried chicken in the mountain pizza is a bit greasy, I will order less next time.",
+    "CreateTime": "2025/1/20",
+    "CustomerID": 27,
+    "SalesID": 20
+  },
+  {
+    "FeedbackID": 21,
+    "Rating": 5,
+    "Comment": "The drink pairing of the mountain pizza is perfect, I really like it!",
+    "CreateTime": "2025/1/21",
+    "CustomerID": 14,
+    "SalesID": 21
+  },
+  {
+    "FeedbackID": 22,
+    "Rating": 4,
+    "Comment": "The overall experience of the mountain pizza is good, but the price is slightly higher.",
+    "CreateTime": "2025/1/22",
+    "CustomerID": 29,
+    "SalesID": 22
+  },
+  {
+    "FeedbackID": 23,
+    "Rating": 5,
+    "Comment": "The cheese edge of the mountain pizza is super delicious and highly recommended!",
+    "CreateTime": "2025/1/23", 
+    "CustomerID": 4, 
+    "SalesID": 23
+  },
+  {
+    "FeedbackID": 24,
+    "Rating": 4,
+    "Comment": "The delivery speed of the mountain pizza is fast, but the pizza is a bit cold.",
+    "CreateTime": "2025/1/24",
+    "CustomerID": 26,
+    "SalesID": 24
+  },
+  {
+    "FeedbackID": 25,
+    "Rating": 5,
+    "Comment": "The fried chicken and drinks in the mountain pizza are delicious, I will order them again next time!",
+    "CreateTime": "2025/1/25",
+    "CustomerID": 10,
+    "SalesID": 25
+  },
+  {
+    "FeedbackID": 26,
+    "Rating": 4,
+    "Comment": "The taste of the mountain pizza is good, but the service is slightly cold.",
+    "CreateTime": "2025/1/26",
+    "CustomerID": 22,
+    "SalesID": 26
+  },
+  {
+    "FeedbackID": 27,
+    "Rating": 5,
+    "Comment": "The Italian sausage pizza from the mountain pizza is very authentic!",
+    "CreateTime": "2025/1/27",
+    "CustomerID": 30,
+    "SalesID": 27
+  },
+  {
+    "FeedbackID": 28,
+    "Rating": 3,
+    "Comment": "The fried chicken in the mountain pizza is a bit hard, I hope it can be improved.",
+    "CreateTime": "2025/1/28",
+    "CustomerID": 25,
+    "SalesID": 28
+  },
+  {
+    "FeedbackID": 29,
+    "Rating": 5,
+    "Comment": "The cheese brushed effect of the mountain pizza is very good, I am very satisfied!",
+    "CreateTime": "2025/1/29",
+    "CustomerID": 20,
+    "SalesID": 29
+  },
+  {
+    "FeedbackID": 30,
+    "Rating": 4,
+    "Comment": "The taste of the mountain pizza is good, but the portion is slightly small.",
+    "CreateTime": "2025/1/30",
+    "CustomerID": 17,
+    "SalesID": 30
+  },
+  {
+    "FeedbackID": 31,
+    "Rating": 5,
+    "Comment": "The fried chicken and pizza from the mountain pizza are both delicious, highly recommended!",
+    "CreateTime": "2025/1/31",
+    "CustomerID": 12,
+    "SalesID": 31
+  },
+  {
+    "FeedbackID": 32,
+    "Rating": 4,
+    "Comment": "The drink of mountain pizza tastes good, but I hope the price is more affordable.",
+    "CreateTime": "2025/2/1",
+    "CustomerID": 19,
+    "SalesID": 32
+  },
+  {
+    "FeedbackID": 33,
+    "Rating": 5,
+    "Comment": "The service attitude of the mountain pizza is very good, and the dining experience is great!",
+    "CreateTime": "2025/2/2",
+    "CustomerID": 8,
+    "SalesID": 33
+  },
+  {
+    "FeedbackID": 34,
+    "Rating": 3,
+    "Comment": "The fried chicken in the mountain pizza is a bit salty, I will try other snacks next time.",
+    "CreateTime": "2025/2/3",
+    "CustomerID": 23,
+    "SalesID": 34
+  },
+  {
+    "FeedbackID": 35,
+    "Rating": 5,
+    "Comment": "The cheese edge pizza from the mountain pizza is very delicious and highly recommended!",
+    "CreateTime": "2025/2/4",
+    "CustomerID": 14,
+    "SalesID": 35
+  },
+  {
+    "FeedbackID": 36,
+    "Rating": 4,
+    "Comment": "The overall experience of the mountain pizza is good, but the delivery time is slightly longer.",
+    "CreateTime": "2025/2/5",
+    "CustomerID": 1,
+    "SalesID": 36
+  },
+  {
+    "FeedbackID": 37,
+    "Rating": 5,
+    "Comment": "The combination of fried chicken and pizza on the mountain pizza is perfect!",
+    "CreateTime": "2025/2/6",
+    "CustomerID": 26,
+    "SalesID": 37
+  },
+  {
+    "FeedbackID": 38,
+    "Rating": 4,
+    "Comment": "The drink of the mountain pizza is a bit sweet, I will ask for less sugar next time.",
+    "CreateTime": "2025/2/7",
+    "CustomerID": 3,
+    "SalesID": 38
+  },
+  {
+    "FeedbackID": 39,
+    "Rating": 5,
+    "Comment": "The service attitude of the mountain pizza is very good, and the dining experience is great!",
+    "CreateTime": "2025/2/8",
+    "CustomerID": 15,
+    "SalesID": 39
+  },
+  {
+    "FeedbackID": 40,
+    "Rating": 3,
+    "Comment": "The fried chicken in the mountain pizza is a bit greasy, I will order less next time.",
+    "CreateTime": "2025/2/9",
+    "CustomerID": 9,
+    "SalesID": 40
+  },
+  {
+    "FeedbackID": 41,
+    "Rating": 5,
+    "Comment": "The cheese edge pizza from the mountain pizza is very delicious and highly recommended!",
+    "CreateTime": "2025/2/10",
+    "CustomerID": 21,
+    "SalesID": 41
+  },
+  {
+    "FeedbackID": 42,
+    "Rating": 4,
+    "Comment": "The overall experience of the mountain pizza is good, but the price is slightly higher.",
+    "CreateTime": "2025/2/11",
+    "CustomerID": 28,
+    "SalesID": 42
+  },
+  {
+    "FeedbackID": 43,
+    "Rating": 5,
+    "Comment": "The combination of fried chicken and pizza on the mountain pizza is perfect!",
+    "CreateTime": "2025/2/12",
+    "CustomerID": 22,
+    "SalesID": 43
+  },
+  {
+    "FeedbackID": 44,
+    "Rating": 4,
+    "Comment": "The drink of the mountain pizza is a bit sweet, I will ask for less sugar next time.",
+    "CreateTime": "2025/2/13",
+    "CustomerID": 10,
+    "SalesID": 44
+  },
+  {
+    "FeedbackID": 45,
+    "Rating": 5,
+    "Comment": "The service attitude of Shanshan Pizza is very good and deserves praise!",
+    "CreateTime": "2025/2/14",
+    "CustomerID": 16,
+    "SalesID": 45
+  },
+  {
+    "FeedbackID": 46,
+    "Rating": 3,
+    "Comment": "The fried chicken in the mountain pizza is a bit greasy, I will order less next time.",
+    "CreateTime": "2025/2/15",
+    "CustomerID": 7,
+    "SalesID": 46
+  },
+  {
+    "FeedbackID": 47,
+    "Rating": 5,
+    "Comment": "The cheese edge pizza from the mountain pizza is very delicious and highly recommended!",
+    "CreateTime": "2025/2/16",
+    "CustomerID": 20,
+    "SalesID": 47
+  },
+  {
+    "FeedbackID": 48,
+    "Rating": 4,
+    "Comment": "Absolutely loved the extra cheese topping!",
+    "CreateTime": "2025/2/17",
+    "CustomerID": 14,
+    "SalesID": 48
+  },
+  {
+    "FeedbackID": 49,
+    "Rating": 5,
+    "Comment": "Outstanding service and cheerful staff.",
+    "CreateTime": "2025/2/18",
+    "CustomerID": 27,
+    "SalesID": 49
+  },
+  {
+    "FeedbackID": 50,
+    "Rating": 3,
+    "Comment": "Packaging kept everything piping hot.",
+    "CreateTime": "2025/2/19",
+    "CustomerID": 33,
+    "SalesID": 50
+  },
+  {
+    "FeedbackID": 51,
+    "Rating": 5,
+    "Comment": "Dessert pizza was an unexpected delight!",
+    "CreateTime": "2025/2/20",
+    "CustomerID": 41,
+    "SalesID": 51
+  },
+  {
+    "FeedbackID": 52,
+    "Rating": 4,
+    "Comment": "Gluten‑free base tasted surprisingly good.",
+    "CreateTime": "2025/2/21",
+    "CustomerID": 62,
+    "SalesID": 52
+  },
+  {
+    "FeedbackID": 53,
+    "Rating": 5,
+    "Comment": "Customer support resolved my issue quickly.",
+    "CreateTime": "2025/2/22",
+    "CustomerID": 18,
+    "SalesID": 53
+  },
+  {
+    "FeedbackID": 54,
+    "Rating": 4,
+    "Comment": "Great value for money on family size.",
+    "CreateTime": "2025/2/23",
+    "CustomerID": 77,
+    "SalesID": 54
+  },
+  {
+    "FeedbackID": 55,
+    "Rating": 3,
+    "Comment": "Crust was too thick for my preference.",
+    "CreateTime": "2025/2/24",
+    "CustomerID": 9,
+    "SalesID": 55
+  },
+  {
+    "FeedbackID": 56,
+    "Rating": 5,
+    "Comment": "Loved the weekly specials and discounts.",
+    "CreateTime": "2025/2/25",
+    "CustomerID": 34,
+    "SalesID": 56
+  },
+  {
+    "FeedbackID": 57,
+    "Rating": 4,
+    "Comment": "Would be great to offer more drink choices.",
+    "CreateTime": "2025/2/26",
+    "CustomerID": 87,
+    "SalesID": 57
+  },
+  {
+    "FeedbackID": 58,
+    "Rating": 5,
+    "Comment": "Portion size was generous for the price.",
+    "CreateTime": "2025/2/27",
+    "CustomerID": 49,
+    "SalesID": 58
+  },
+  {
+    "FeedbackID": 59,
+    "Rating": 2,
+    "Comment": "Too much garlic for my taste buds.",
+    "CreateTime": "2025/2/28",
+    "CustomerID": 53,
+    "SalesID": 59
+  },
+  {
+    "FeedbackID": 60,
+    "Rating": 5,
+    "Comment": "The sauce was flavorful and well‑balanced.",
+    "CreateTime": "2025/3/1",
+    "CustomerID": 12,
+    "SalesID": 60
+  },
+  {
+    "FeedbackID": 61,
+    "Rating": 4,
+    "Comment": "Decent pizza, nothing extraordinary though.",
+    "CreateTime": "2025/3/2",
+    "CustomerID": 18,
+    "SalesID": 61
+  },
+  {
+    "FeedbackID": 62,
+    "Rating": 5,
+    "Comment": "Buffalo chicken topping had a nice kick.",
+    "CreateTime": "2025/3/3",
+    "CustomerID": 27,
+    "SalesID": 62
+  },
+  {
+    "FeedbackID": 63,
+    "Rating": 3,
+    "Comment": "Could use more seasoning on the edges.",
+    "CreateTime": "2025/3/4",
+    "CustomerID": 5,
+    "SalesID": 63
+  },
+  {
+    "FeedbackID": 64,
+    "Rating": 5,
+    "Comment": "Kid‑friendly menu was a big plus.",
+    "CreateTime": "2025/3/5",
+    "CustomerID": 71,
+    "SalesID": 64
+  },
+  {
+    "FeedbackID": 65,
+    "Rating": 4,
+    "Comment": "Packaging kept everything piping hot.",
+    "CreateTime": "2025/3/6",
+    "CustomerID": 33,
+    "SalesID": 65
+  },
+  {
+    "FeedbackID": 66,
+    "Rating": 5,
+    "Comment": "Appreciated the eco‑friendly delivery box.",
+    "CreateTime": "2025/3/7",
+    "CustomerID": 58,
+    "SalesID": 66
+  },
+  {
+    "FeedbackID": 67,
+    "Rating": 2,
+    "Comment": "Arrived cold, not very satisfied.",
+    "CreateTime": "2025/3/8",
+    "CustomerID": 42,
+    "SalesID": 67
+  },
+  {
+    "FeedbackID": 68,
+    "Rating": 5,
+    "Comment": "Dessert pizza was an unexpected delight!",
+    "CreateTime": "2025/3/9",
+    "CustomerID": 49,
+    "SalesID": 68
+  },
+  {
+    "FeedbackID": 69,
+    "Rating": 4,
+    "Comment": "Outstanding service and cheerful staff.",
+    "CreateTime": "2025/3/10",
+    "CustomerID": 27,
+    "SalesID": 69
+  },
+  {
+    "FeedbackID": 70,
+    "Rating": 3,
+    "Comment": "Fantastic vegan options—will order again!",
+    "CreateTime": "2025/3/11",
+    "CustomerID": 61,
+    "SalesID": 70
+  },
+  {
+    "FeedbackID": 71,
+    "Rating": 5,
+    "Comment": "Crust was too thick for my preference.",
+    "CreateTime": "2025/3/12",
+    "CustomerID": 9,
+    "SalesID": 71
+  },
+  {
+    "FeedbackID": 72,
+    "Rating": 4,
+    "Comment": "Gluten‑free base tasted surprisingly good.",
+    "CreateTime": "2025/3/13",
+    "CustomerID": 62,
+    "SalesID": 72
+  },
+  {
+    "FeedbackID": 73,
+    "Rating": 5,
+    "Comment": "The cheese pull was Instagram‑worthy!",
+    "CreateTime": "2025/3/14",
+    "CustomerID": 31,
+    "SalesID": 73
+  },
+  {
+    "FeedbackID": 74,
+    "Rating": 3,
+    "Comment": "Salad side felt a bit wilted.",
+    "CreateTime": "2025/3/15",
+    "CustomerID": 53,
+    "SalesID": 74
+  },
+  {
+    "FeedbackID": 75,
+    "Rating": 5,
+    "Comment": "Polite phone staff helped customize my order.",
+    "CreateTime": "2025/3/16",
+    "CustomerID": 34,
+    "SalesID": 75
+  },
+  {
+    "FeedbackID": 76,
+    "Rating": 4,
+    "Comment": "Wish you offered whole‑wheat dough.",
+    "CreateTime": "2025/3/17",
+    "CustomerID": 77,
+    "SalesID": 76
+  },
+  {
+    "FeedbackID": 77,
+    "Rating": 5,
+    "Comment": "Impressed by the contact‑free delivery.",
+    "CreateTime": "2025/3/18",
+    "CustomerID": 52,
+    "SalesID": 77
+  },
+  {
+    "FeedbackID": 78,
+    "Rating": 2,
+    "Comment": "Too salty overall for my liking.",
+    "CreateTime": "2025/3/19",
+    "CustomerID": 17,
+    "SalesID": 78
+  },
+  {
+    "FeedbackID": 79,
+    "Rating": 5,
+    "Comment": "The marinara tasted homemade—loved it.",
+    "CreateTime": "2025/3/20",
+    "CustomerID": 26,
+    "SalesID": 79
+  },
+  {
+    "FeedbackID": 80,
+    "Rating": 4,
+    "Comment": "Crust edges were slightly burnt.",
+    "CreateTime": "2025/3/21",
+    "CustomerID": 37,
+    "SalesID": 80
+  },
+  {
+    "FeedbackID": 81,
+    "Rating": 5,
+    "Comment": "Love the option to choose half‑and‑half.",
+    "CreateTime": "2025/3/22",
+    "CustomerID": 44,
+    "SalesID": 81
+  },
+  {
+    "FeedbackID": 82,
+    "Rating": 3,
+    "Comment": "Parmesan sprinkle packet was missing.",
+    "CreateTime": "2025/3/23",
+    "CustomerID": 58,
+    "SalesID": 82
+  },
+  {
+    "FeedbackID": 83,
+    "Rating": 5,
+    "Comment": "App was easy to navigate and pay.",
+    "CreateTime": "2025/3/24",
+    "CustomerID": 71,
+    "SalesID": 83
+  },
+  {
+    "FeedbackID": 84,
+    "Rating": 5,
+    "Comment": "Meat‑lovers pizza was a protein feast!", 
+    "CreateTime": "2025/3/25", 
+    "CustomerID": 85, 
+    "SalesID": 84
+  },
+  {
+    "FeedbackID": 85,
+    "Rating": 4,
+    "Comment": "Olives tasted slightly old today.",
+    "CreateTime": "2025/3/26",
+    "CustomerID": 92,
+    "SalesID": 85
+  },
+  {
+    "FeedbackID": 86,
+    "Rating": 5,
+    "Comment": "Love the student discount program.",
+    "CreateTime": "2025/3/27",
+    "CustomerID": 23,
+    "SalesID": 86
+  },
+  {
+    "FeedbackID": 87,
+    "Rating": 4,
+    "Comment": "Need more vegan cheese alternatives.",
+    "CreateTime": "2025/3/28",
+    "CustomerID": 64,
+    "SalesID": 87
+  },
+  {
+    "FeedbackID": 88,
+    "Rating": 5,
+    "Comment": "Great heat retention—pizza still steaming.",
+    "CreateTime": "2025/3/29",
+    "CustomerID": 58,
+    "SalesID": 88
+  },
+  {
+    "FeedbackID": 89,
+    "Rating": 3,
+    "Comment": "Crust got soggy in the middle.",
+    "CreateTime": "2025/3/30",
+    "CustomerID": 72,
+    "SalesID": 89
+  },
+  {
+    "FeedbackID": 90,
+    "Rating": 5,
+    "Comment": "Love the loyalty points system.",
+    "CreateTime": "2025/3/31",
+    "CustomerID": 41,
+    "SalesID": 90
+  },
+  {
+    "FeedbackID": 91,
+    "Rating": 4,
+    "Comment": "Box had a funny motivational quote—nice touch.",
+    "CreateTime": "2025/4/1",
+    "CustomerID": 38,
+    "SalesID": 91
+  },
+  {
+    "FeedbackID": 92,
+    "Rating": 5,
+    "Comment": "Sauce‑to‑cheese ratio felt perfect.",
+    "CreateTime": "2025/4/2",
+    "CustomerID": 52,
+    "SalesID": 92
+  },
+  {
+    "FeedbackID": 93,
+    "Rating": 3,
+    "Comment": "Wish thin crust was crispier.",
+    "CreateTime": "2025/4/3",
+    "CustomerID": 43,
+    "SalesID": 93
+  },
+  {
+    "FeedbackID": 94,
+    "Rating": 5,
+    "Comment": "Delivery driver forgot my soda.",
+    "CreateTime": "2025/4/4",
+    "CustomerID": 17,
+    "SalesID": 94
+  },
+  {
+    "FeedbackID": 95,
+    "Rating": 4,
+    "Comment": "Five‑cheese blend is absolutely heavenly.",
+    "CreateTime": "2025/4/5",
+    "CustomerID": 31,
+    "SalesID": 95
+  },
+  {
+    "FeedbackID": 96,
+    "Rating": 5,
+    "Comment": "Please consider adding cauliflower crust.",
+    "CreateTime": "2025/4/6",
+    "CustomerID": 26,
+    "SalesID": 96
+  },
+  {
+    "FeedbackID": 97,
+    "Rating": 4,
+    "Comment": "App glitched during checkout but support fixed it fast.",
+    "CreateTime": "2025/4/7",
+    "CustomerID": 68,
+    "SalesID": 97
+  },
+  {
+    "FeedbackID": 98,
+    "Rating": 5,
+    "Comment": "Love the seasonal limited‑edition toppings.",
+    "CreateTime": "2025/4/8",
+    "CustomerID": 93,
+    "SalesID": 98
+  },
+  {
+    "FeedbackID": 99,
+    "Rating": 3,
+    "Comment": "Crust tasted bland without dipping sauce.",
+    "CreateTime": "2025/4/9",
+    "CustomerID": 43,
+    "SalesID": 99
+  },
+  {
+    "FeedbackID": 100,
+    "Rating": 4,
+    "Comment": "Would be great to offer more drink choices.",
+    "CreateTime": "2025/4/10",
+    "CustomerID": 87,
+    "SalesID": 100
+  }
+];
+
+// ──────────────────────────────────────────────────────
+// 渲染逻辑：计算平均分、星级分布、插入评论
+// ──────────────────────────────────────────────────────
+(function(){
+  const TOTAL = reviews.length;
+  const sumStars = reviews.reduce((sum, r)=> sum + (r.Rating||0), 0);
+  const avg = TOTAL ? sumStars/TOTAL : 0;
+
+  // 各星级统计
+  const starCounts = [0,0,0,0,0,0];
+  reviews.forEach(r=>{ if(r.Rating>=1&&r.Rating<=5) starCounts[r.Rating]++; });
+  const starPct = starCounts.map(c=>TOTAL?Math.round(c/TOTAL*100):0);
+
+  // 更新统计区
+  document.getElementById('avgRating').textContent = avg.toFixed(1);
+  document.getElementById('totalReviews').textContent =
+    `Based on recent ${TOTAL} review${TOTAL>1?'s':''}`;
+
+  // 渲染平均星星
+  const starDiv = document.getElementById('avgStars');
+  starDiv.innerHTML = '';
+  const full = Math.floor(avg), half = (avg-full)>=0.5;
+  for(let i=0;i<5;i++){
+    if(i<full)      starDiv.innerHTML += '<i class="bi bi-star-fill text-warning"></i>';
+    else if(i===full&&half) starDiv.innerHTML += '<i class="bi bi-star-half text-warning"></i>';
+    else            starDiv.innerHTML += '<i class="bi bi-star text-warning"></i>';
+  }
+
+  // 渲染分布条
+  for(let s=1;s<=5;s++){
+    const pct=starPct[s], bar=document.getElementById(`bar${s}`);
+    bar.style.width=pct+'%';
+    if(s>=4) bar.classList.add('bg-success');
+    else if(s===3) bar.classList.add('bg-warning');
+    else bar.classList.add('bg-danger');
+    bar.setAttribute('aria-valuenow',pct);
+    document.getElementById(`pct${s}`).textContent=pct+'%';
+  }
+
+  // 插入评论列表
+  const container=document.getElementById('commentContainer');
+  reviews.sort((a,b)=> new Date(b.CreateTime)-new Date(a.CreateTime));
+  reviews.forEach(r=>{
+    const stars = '<i class="bi bi-star-fill text-warning"></i>'.repeat(r.Rating)
+                + '<i class="bi bi-star text-warning"></i>'.repeat(5-r.Rating);
+    const html=`
+      <div class="review-item mb-3 pb-3 border-bottom">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <div><strong>Customer ${String(r.CustomerID).padStart(3,'0')}</strong>
+               <span class="text-muted ms-2">${r.CreateTime}</span></div>
+          <div class="star-rating">${stars}</div>
+        </div>
+        <p class="mb-0">${r.Comment}</p>
+      </div>`;
+    container.insertAdjacentHTML('beforeend',html);
+  });
+})();
+</script>
+{% endblock %}

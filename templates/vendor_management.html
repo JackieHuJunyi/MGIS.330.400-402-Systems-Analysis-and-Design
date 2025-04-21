@@ -1,0 +1,504 @@
+{% extends "layout.html" %} {% block page_title %}Vendor Management{% endblock %} {% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Vendor Management</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="/">Home</a></li>
+        <li class="breadcrumb-item active">Food Vendor Management</li>
+    </ol>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-shop me-1"></i> Food Vendors Management
+            </h5>
+            <div>
+                <button id="exportFoodVendorsBtn" class="btn btn-sm btn-outline-secondary me-1">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Export
+                </button>
+                <button id="addFoodVendorButton" class="btn btn-sm btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i> Add Vendor
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Contact Person</th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>Address</th>
+                            <th>Created Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="foodVendorsTableBody">
+                        <tr>
+                            <td colspan="8" class="text-center">
+                                <div class="spinner-border spinner-border-sm text-secondary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <span class="ms-2">Loading data...</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addFoodVendorModal" tabindex="-1" aria-labelledby="addFoodVendorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addFoodVendorModalLabel">Add Food Vendor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="foodVendorForm">
+                    <input type="hidden" id="foodVendorId">
+
+                    <div class="mb-3">
+                        <label for="foodVendorName" class="form-label">Vendor Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="foodVendorName" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="foodVendorContact" class="form-label">Contact Person</label>
+                        <input type="text" class="form-control" id="foodVendorContact">
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="foodVendorPhone" class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="foodVendorPhone">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="foodVendorEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="foodVendorEmail">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="foodVendorAddress" class="form-label">Address</label>
+                        <input type="text" class="form-control" id="foodVendorAddress">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="foodVendorDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="foodVendorDescription" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveFoodVendorBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="addPayableModal" tabindex="-1" aria-labelledby="addPayableModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addPayableModalLabel">Add Payable for Vendor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="payableForm">
+                    <input type="hidden" id="payableVendorId">
+                    <p><strong>Vendor:</strong> <span id="payableVendorName"></span></p>
+
+                    <div class="mb-3">
+                        <label for="payableAmount" class="form-label">Payable Amount <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="payableAmount" step="0.01" min="0.01" required placeholder="e.g., 150.75">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="payableDueDate" class="form-label">Due Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="payableDueDate" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="payablePurchaseId" class="form-label">Related Purchase ID (Optional)</label>
+                        <input type="number" class="form-control" id="payablePurchaseId" placeholder="Enter Purchase ID if applicable">
+                    </div>
+
+                    </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="savePayableBtn">Save Payable</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // --- 全局变量和助手函数 ---
+    let addPayableModalInstance = null; // 用于缓存模态框实例
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Food vendor management page initialized');
+        if (!document.querySelector('.toast-container')) {
+            const toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(toastContainer);
+        }
+        // 初始化模态框实例
+        addPayableModalInstance = new bootstrap.Modal(document.getElementById('addPayableModal'));
+
+        initFoodVendorManagement();
+    });
+
+    // 初始化食品供应商管理功能
+    function initFoodVendorManagement() {
+        loadFoodVendors();
+        document.getElementById('addFoodVendorButton').addEventListener('click', openAddFoodVendorModal);
+        document.getElementById('saveFoodVendorBtn').addEventListener('click', saveFoodVendor);
+        document.getElementById('exportFoodVendorsBtn').addEventListener('click', exportFoodVendorsToCSV);
+
+        // --- 新增: 绑定保存 Payable 按钮事件 ---
+        document.getElementById('savePayableBtn').addEventListener('click', savePayable);
+        // --- 绑定结束 ---
+    }
+
+    // 加载食品供应商数据
+    function loadFoodVendors() {
+        fetch('/api/vendors/food') // 确认此端点返回 Vendor 列表
+            .then(response => response.ok ? response.json() : Promise.reject(response))
+            .then(vendors => { // 直接使用返回的列表
+                renderFoodVendorsTable(vendors);
+            })
+            .catch(async error => {
+                let errorMsg = 'Failed to load food vendors';
+                if (error instanceof Response) {
+                    const text = await error.text();
+                    errorMsg += `: ${error.status} - ${text}`;
+                } else {
+                    errorMsg += `: ${error.message}`;
+                }
+                console.error('Load food vendors error:', errorMsg);
+                showToast('Error', errorMsg, 'danger');
+                renderFoodVendorsTable([]);
+            });
+    }
+
+    // 渲染食品供应商表格
+    function renderFoodVendorsTable(vendors) {
+        const tableBody = document.getElementById('foodVendorsTableBody');
+        tableBody.innerHTML = ''; // Clear table
+
+        if (!vendors || vendors.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="8" class="text-center"><i class="bi bi-exclamation-circle me-2"></i>No food vendors found</td></tr>`;
+            return;
+        }
+
+        vendors.forEach(vendor => {
+            const row = document.createElement('tr');
+            const createdDate = vendor.CreatedAt ? formatDate(new Date(vendor.CreatedAt)) : 'Unknown';
+
+            // --- 修改: 添加 "Add Payable" 按钮 ---
+            row.innerHTML = `
+                <td>${vendor.VendorID || ''}</td>
+                <td>${vendor.Name || ''}</td>
+                <td>${vendor.contact_person || vendor.ContactPerson || '-'}</td>
+                <td>${vendor.phone || vendor.Phone || '-'}</td>
+                <td>${vendor.email || vendor.Email || '-'}</td>
+                <td>${vendor.address || vendor.Address || '-'}</td>
+                <td>${createdDate}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary edit-food-vendor" data-id="${vendor.VendorID}" title="Edit Vendor">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger delete-food-vendor" data-id="${vendor.VendorID}" title="Delete Vendor">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-success add-payable-btn"
+                            data-vendor-id="${vendor.VendorID}"
+                            data-vendor-name="${vendor.Name || ''}"
+                            title="Add Payable">
+                        <i class="bi bi-currency-dollar"></i>
+                    </button>
+                </td>
+            `;
+            // --- 修改结束 ---
+
+            tableBody.appendChild(row);
+        });
+
+        // --- 修改: 重新绑定所有按钮的事件监听器 ---
+        bindTableActionButtons();
+    }
+
+    // --- 新增: 统一绑定表格操作按钮事件 ---
+    function bindTableActionButtons() {
+        const tableBody = document.getElementById('foodVendorsTableBody');
+
+        tableBody.querySelectorAll('.edit-food-vendor').forEach(button => {
+             // 移除旧监听器以防重复绑定 (如果需要)
+             // button.replaceWith(button.cloneNode(true));
+             button.addEventListener('click', function() {
+                editFoodVendor(this.getAttribute('data-id'));
+             });
+        });
+
+        tableBody.querySelectorAll('.delete-food-vendor').forEach(button => {
+             button.addEventListener('click', function() {
+                deleteFoodVendor(this.getAttribute('data-id'));
+             });
+        });
+
+        tableBody.querySelectorAll('.add-payable-btn').forEach(button => {
+             button.addEventListener('click', function() {
+                const vendorId = this.getAttribute('data-vendor-id');
+                const vendorName = this.getAttribute('data-vendor-name');
+                openAddPayableModal(vendorId, vendorName);
+             });
+        });
+    }
+    // --- 新增结束 ---
+
+    // 打开添加/编辑供应商模态框 (保持不变)
+    function openAddFoodVendorModal() {
+        document.getElementById('foodVendorForm').reset();
+        document.getElementById('foodVendorId').value = '';
+        document.getElementById('addFoodVendorModalLabel').textContent = 'Add Food Vendor';
+        const modal = new bootstrap.Modal(document.getElementById('addFoodVendorModal'));
+        modal.show();
+    }
+
+    // 编辑食品供应商 (保持不变)
+    function editFoodVendor(vendorId) {
+        fetch(`/api/vendors/food/${vendorId}`) // Use the correct endpoint
+            .then(response => response.ok ? response.json() : Promise.reject('Failed to fetch vendor'))
+            .then(vendor => {
+                document.getElementById('foodVendorId').value = vendor.VendorID;
+                document.getElementById('foodVendorName').value = vendor.name || vendor.Name || ''; // Handle different key cases
+                document.getElementById('foodVendorContact').value = vendor.contact_person || vendor.ContactPerson || '';
+                document.getElementById('foodVendorPhone').value = vendor.phone || vendor.Phone || '';
+                document.getElementById('foodVendorEmail').value = vendor.email || vendor.Email || '';
+                document.getElementById('foodVendorAddress').value = vendor.address || vendor.Address || '';
+                document.getElementById('foodVendorDescription').value = vendor.description || vendor.Description || '';
+                document.getElementById('addFoodVendorModalLabel').textContent = 'Edit Food Vendor';
+                const modal = new bootstrap.Modal(document.getElementById('addFoodVendorModal'));
+                modal.show();
+            })
+            .catch(error => {
+                console.error('Edit food vendor error:', error);
+                showToast('Error', `Could not load vendor details: ${error}`, 'danger');
+            });
+    }
+
+
+    // 保存食品供应商 (保持不变)
+    function saveFoodVendor() {
+        const vendorId = document.getElementById('foodVendorId').value;
+        const vendorName = document.getElementById('foodVendorName').value.trim();
+        if (!vendorName) {
+            showToast('Warning', 'Vendor Name is required', 'warning');
+            return;
+        }
+        const vendorData = {
+            Name: vendorName, // Use the correct key expected by the backend
+            ContactPerson: document.getElementById('foodVendorContact').value.trim(),
+            Phone: document.getElementById('foodVendorPhone').value.trim(),
+            Email: document.getElementById('foodVendorEmail').value.trim(),
+            Address: document.getElementById('foodVendorAddress').value.trim(),
+            Description: document.getElementById('foodVendorDescription').value.trim()
+        };
+        const isUpdate = vendorId ? true : false;
+        const url = isUpdate ? `/api/vendors/food/${vendorId}` : '/api/vendors/food'; // Use correct endpoint
+        const method = isUpdate ? 'PUT' : 'POST';
+
+        fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(vendorData)
+            })
+            .then(response => response.ok ? response.json() : response.json().then(err => Promise.reject(err.message || 'Save failed')))
+            .then(data => {
+                bootstrap.Modal.getInstance(document.getElementById('addFoodVendorModal')).hide();
+                showToast('Success', `Food vendor ${isUpdate ? 'updated' : 'added'} successfully`, 'success');
+                loadFoodVendors();
+            })
+            .catch(error => {
+                console.error('Save food vendor error:', error);
+                showToast('Error', `Failed to save vendor: ${error}`, 'danger');
+            });
+    }
+
+
+    // 删除食品供应商 (保持不变)
+    function deleteFoodVendor(vendorId) {
+        if (confirm('Are you sure you want to delete this food vendor? Associated payables might remain.')) {
+            fetch(`/api/vendors/food/${vendorId}`, { method: 'DELETE' }) // Use correct endpoint
+                .then(response => response.ok ? response.json() : Promise.reject('Delete failed'))
+                .then(data => {
+                    showToast('Success', data.message || 'Food vendor deleted', 'success');
+                    loadFoodVendors();
+                })
+                .catch(error => {
+                    console.error('Delete food vendor error:', error);
+                    showToast('Error', `Failed to delete vendor: ${error}`, 'danger');
+                });
+        }
+    }
+
+    // 导出食品供应商 (保持不变)
+    function exportFoodVendorsToCSV() {
+        fetch('/api/vendors/food') // Use correct endpoint
+            .then(response => response.ok ? response.json() : Promise.reject('Failed to fetch vendors'))
+            .then(vendors => {
+                if (!vendors || vendors.length === 0) {
+                    showToast('Warning', 'No vendor data to export', 'warning');
+                    return;
+                }
+                const headers = ['ID', 'Name', 'Contact Person', 'Phone', 'Email', 'Address', 'Created Date', 'Description'];
+                const csvContent = [
+                    headers.join(','),
+                    ...vendors.map(v => [
+                        v.VendorID || v.id || '', // Handle potential key differences
+                        `"${(v.Name || v.name || '').replace(/"/g, '""')}"`,
+                        `"${(v.ContactPerson || v.contact_person || '').replace(/"/g, '""')}"`,
+                        `"${(v.Phone || v.phone || '').replace(/"/g, '""')}"`,
+                        `"${(v.Email || v.email || '').replace(/"/g, '""')}"`,
+                        `"${(v.Address || v.address || '').replace(/"/g, '""')}"`,
+                        v.CreatedAt || v.created_at ? formatDate(new Date(v.CreatedAt || v.created_at)) : '',
+                        `"${(v.Description || v.description || '').replace(/"/g, '""')}"`
+                    ].join(','))
+                ].join('\n');
+                const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `Food_Vendors_${formatDate(new Date(), true)}.csv`);
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            })
+            .catch(error => {
+                console.error('Export error:', error);
+                showToast('Error', `Failed to export data: ${error}`, 'danger');
+            });
+    }
+
+    // --- 新增 Payable 相关函数 ---
+
+    // 打开添加 Payable 模态框
+    function openAddPayableModal(vendorId, vendorName) {
+        if (!addPayableModalInstance) {
+            console.error("Payable modal instance not initialized");
+            return;
+        }
+        // 重置表单
+        document.getElementById('payableForm').reset();
+        // 设置 Vendor 信息
+        document.getElementById('payableVendorId').value = vendorId;
+        document.getElementById('payableVendorName').textContent = vendorName || 'N/A';
+        // 设置标题
+        document.getElementById('addPayableModalLabel').textContent = `Add Payable for ${vendorName || 'Vendor'}`;
+        // 显示模态框
+        addPayableModalInstance.show();
+    }
+
+    // 保存 Payable
+    function savePayable() {
+        const vendorId = document.getElementById('payableVendorId').value;
+        const amount = document.getElementById('payableAmount').value;
+        const dueDate = document.getElementById('payableDueDate').value;
+        const purchaseId = document.getElementById('payablePurchaseId').value; // Optional
+
+        if (!vendorId || !amount || !dueDate) {
+            showToast('Validation Error', 'Amount and Due Date are required.', 'warning');
+            return;
+        }
+        if (parseFloat(amount) <= 0) {
+             showToast('Validation Error', 'Amount must be greater than zero.', 'warning');
+             return;
+        }
+
+
+        const payload = {
+            amount: amount,
+            due_date: dueDate,
+            purchase_id: purchaseId || null // Send null if empty
+            // notes: document.getElementById('payableNotes').value // If notes field is added
+        };
+
+        const saveButton = document.getElementById('savePayableBtn');
+        saveButton.disabled = true;
+        saveButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Saving...`;
+
+        fetch(`/api/vendors/${vendorId}/payables`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.ok ? response.json() : response.json().then(err => Promise.reject(err.message || 'Save failed')))
+        .then(data => {
+            showToast('Success', data.message || 'Payable created successfully!', 'success');
+            addPayableModalInstance.hide();
+            // Optionally: Refresh payable list if displayed, or navigate to financial page
+        })
+        .catch(error => {
+            console.error('Save payable error:', error);
+            showToast('Error', `Failed to create payable: ${error}`, 'danger');
+        })
+        .finally(() => {
+             saveButton.disabled = false;
+             saveButton.innerHTML = 'Save Payable';
+        });
+    }
+
+    // --- Payable 相关函数结束 ---
+
+    // 显示 Toast 通知 (保持不变)
+    function showToast(title, message, type = 'info') {
+        const toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) return; // Avoid errors if container not found
+        const toastId = 'toast-' + Date.now();
+        const toastHtml = `
+            <div id="${toastId}" class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <strong>${title}:</strong> ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `;
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        const toastElement = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+        toast.show();
+        toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
+    }
+
+    // 格式化日期助手函数 (保持不变)
+    function formatDate(date, dateOnly = false) {
+        const optionsDate = { year: 'numeric', month: '2-digit', day: '2-digit' };
+        const optionsDateTime = { ...optionsDate, hour: '2-digit', minute: '2-digit' };
+        try {
+             return date.toLocaleDateString('en-CA', dateOnly ? optionsDate : optionsDateTime); // yyyy-mm-dd format
+        } catch (e) {
+            console.warn("Error formatting date:", date, e);
+            return "Invalid Date";
+        }
+    }
+
+</script>
+{% endblock %}

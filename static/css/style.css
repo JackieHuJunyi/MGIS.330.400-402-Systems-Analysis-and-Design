@@ -1,0 +1,200 @@
+/* 全局样式 */
+
+body {
+    font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+
+/* 导航栏样式 */
+
+.nav-link {
+    color: rgba(255, 255, 255, .8) !important;
+    margin-bottom: 5px;
+}
+
+.nav-link:hover {
+    color: white !important;
+}
+
+.nav-link.active {
+    background-color: #0d6efd !important;
+    color: white !important;
+}
+
+
+/* 卡片样式 */
+
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, .1);
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, .12);
+}
+
+.card-header {
+    font-weight: bold;
+}
+
+
+/* 图表容器 */
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+
+/* 警报样式 */
+
+.alert-icon {
+    font-size: 1.5rem;
+    margin-right: 10px;
+}
+
+.alert-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    padding: 5px 8px;
+    border-radius: 50%;
+    background-color: #dc3545;
+    color: white;
+    font-size: 12px;
+}
+
+
+/* 表格样式 */
+
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+
+/* 数据显示卡片 */
+
+.data-card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, .05);
+}
+
+.data-card .title {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+}
+
+.data-card .value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 0;
+}
+
+.data-card .change {
+    font-size: 0.8rem;
+    margin-top: 5px;
+}
+
+.data-card .change.positive {
+    color: #28a745;
+}
+
+.data-card .change.negative {
+    color: #dc3545;
+}
+
+
+/* 风险警告标签 */
+
+.risk-level {
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.risk-level.high {
+    background-color: #ffcccc;
+    color: #dc3545;
+}
+
+.risk-level.medium {
+    background-color: #fff3cd;
+    color: #ffc107;
+}
+
+.risk-level.low {
+    background-color: #d1e7dd;
+    color: #198754;
+}
+
+
+/* 顾客会员等级颜色 */
+
+.membership-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.membership-badge.regular {
+    background-color: #e9ecef;
+    color: #495057;
+}
+
+.membership-badge.silver {
+    background-color: #e2e3e5;
+    color: #41464b;
+}
+
+.membership-badge.gold {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+.membership-badge.diamond {
+    background-color: #cfe2ff;
+    color: #084298;
+}
+
+
+/* 加载动画 */
+
+.loading-spinner {
+    display: inline-block;
+    width: 80px;
+    height: 80px;
+    margin: 100px auto;
+    position: relative;
+}
+
+.loading-spinner:after {
+    content: " ";
+    display: block;
+    width: 64px;
+    height: 64px;
+    margin: 8px;
+    border-radius: 50%;
+    border: 6px solid #0d6efd;
+    border-color: #0d6efd transparent #0d6efd transparent;
+    animation: loading-spinner 1.2s linear infinite;
+}
+
+@keyframes loading-spinner {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}

@@ -1,0 +1,540 @@
+{% extends "layout.html" %} {% block title %}Item Management{% endblock %} {% block content %}
+
+<h1 class="h3 mb-4 text-gray-800">Item Management</h1>
+
+<!-- Action Buttons -->
+<div class="mb-4">
+    <button class="btn btn-primary" id="addItemBtn" type="button" data-bs-toggle="modal" data-bs-target="#addItemModal">
+        <i class="fas fa-plus me-1"></i> Add Item
+    </button>
+    <button class="btn btn-info ms-2" id="refreshBtn">
+        <i class="fas fa-sync-alt"></i> Refresh Data
+    </button>
+</div>
+
+<!-- Add/Edit Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addItemModalLabel">Add Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addItemForm">
+                    <input type="hidden" id="itemId" name="item_id">
+                    <div class="mb-3">
+                        <label for="itemName" class="form-label">Item Name</label>
+                        <input type="text" class="form-control" id="itemName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="itemCategory" class="form-label">Category</label>
+                        <input type="text" class="form-control" id="itemCategory" name="category">
+                    </div>
+                    <div class="mb-3">
+                        <label for="itemUnit" class="form-label">Default Unit</label>
+                        <input type="text" class="form-control" id="itemUnit" name="unit" placeholder="pcs, kg, L etc.">
+                    </div>
+                    <div class="mb-3">
+                        <label for="itemDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="itemDescription" name="description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveItemBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Item Table -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">Item List</h6>
+        <div class="input-group" style="max-width: 300px;">
+            <input type="text" class="form-control" id="searchInput" placeholder="Search items...">
+            <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn" title="Clear search">
+                <i class="fas fa-times"></i>
+                <span class="visually-hidden">Clear search</span>
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover" id="itemTable" width="100%" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Item Name</th>
+                        <th>Category</th>
+                        <th>Default Unit</th>
+                        <th>Current Stock</th>
+                        <th>Stock Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="itemTableBody">
+                    <tr>
+                        <td colspan="7" class="text-center">Loading item data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Success Toast -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <strong class="me-auto text-success">Success</strong>
+            <small>Just now</small>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="successToastBody">
+            Operation completed successfully!
+        </div>
+    </div>
+</div>
+
+<!-- Error Toast -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header bg-danger text-white">
+            <strong class="me-auto">Error</strong>
+            <small>Just now</small>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="errorToastBody">
+            An error occurred while processing your request.
+        </div>
+    </div>
+</div>
+
+{% endblock %} {% block script %}
+<script>
+    // 全局变量
+    // Global variables
+    let allItems = [];
+
+    // 显示成功消息
+    // Display success message
+    function showSuccessToast(message) {
+        const toastEl = document.getElementById('successToast');
+        const toastBody = document.getElementById('successToastBody');
+        toastBody.textContent = message || 'Operation completed successfully!';
+        const toast = bootstrap.Toast.getOrCreateInstance(toastEl);
+        toast.show();
+    }
+
+    // 显示错误消息
+    // Display error message
+    function showErrorToast(message) {
+        const toastEl = document.getElementById('errorToast');
+        const toastBody = document.getElementById('errorToastBody');
+        toastBody.textContent = message || 'An error occurred while processing your request.';
+        const toast = bootstrap.Toast.getOrCreateInstance(toastEl);
+        toast.show();
+    }
+
+    // 加载所有物品
+    // Load all items
+    function loadItems() {
+        console.log('Loading item data...');
+        const tableBody = document.getElementById('itemTableBody');
+        tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Loading item data...</td></tr>';
+
+        // 尝试从API获取数据
+        // Try to get data from API
+        fetch('/api/item/all')
+            .then(response => {
+                console.log('API response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`Failed to load item data: ${response.status} ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(items => {
+                console.log(`Received ${items ? items.length : 0} items`);
+
+                if (items && items.length > 0) {
+                    allItems = items; // 全局存储
+                    renderItemTable(items);
+                    console.log(`Loaded ${items.length} items`);
+                } else {
+                    console.warn('API returned empty item list, loading sample data');
+                    loadSampleItems();
+                }
+            })
+            .catch(error => {
+                console.error('Failed to load items:', error);
+                tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+                showErrorToast('Failed to load items: ' + error.message);
+
+                // 加载示例数据作为备用
+                // Load sample data as backup
+                console.warn('Loading sample item data as backup');
+                loadSampleItems();
+            });
+    }
+
+    // 加载示例物品数据
+    // Load sample item data
+    function loadSampleItems() {
+        const sampleItems = [{
+            ItemID: 1,
+            Name: "High Gluten Flour",
+            Category: "Main Ingredients",
+            DefaultUnit: "kg",
+            Description: "Flour for making pizza dough",
+            CurrentStock: 50,
+            Status: "Normal"
+        }, {
+            ItemID: 2,
+            Name: "Tomato Sauce",
+            Category: "Condiments",
+            DefaultUnit: "L",
+            Description: "Basic pizza sauce",
+            CurrentStock: 25,
+            Status: "Normal"
+        }, {
+            ItemID: 3,
+            Name: "Mozzarella Cheese",
+            Category: "Dairy",
+            DefaultUnit: "kg",
+            Description: "Common pizza cheese",
+            CurrentStock: 8,
+            Status: "Low"
+        }];
+
+        allItems = sampleItems;
+        renderItemTable(sampleItems);
+        showErrorToast('Using sample item data. Database connection may be invalid.');
+    }
+
+    // 渲染物品表格
+    // Render item table
+    function renderItemTable(items) {
+        const tableBody = document.getElementById('itemTableBody');
+        tableBody.innerHTML = '';
+
+        if (!items || items.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center">No items found</td></tr>';
+            return;
+        }
+
+        items.forEach(item => {
+            const row = document.createElement('tr');
+
+            // 确定状态
+            // Determine status
+            let statusClass = 'text-success';
+            let statusText = 'Normal';
+
+            if (item.Status === 'Low') {
+                statusClass = 'text-warning';
+                statusText = 'Low Stock';
+            } else if (item.CurrentStock === 0) {
+                statusClass = 'text-danger';
+                statusText = 'Out of Stock';
+            }
+
+            // 设置行内容
+            // Set row content
+            row.innerHTML = `
+                <td>${item.ItemID}</td>
+                <td>${item.Name}</td>
+                <td>${item.Category || '-'}</td>
+                <td>${item.DefaultUnit || 'pcs'}</td>
+                <td>${item.CurrentStock || 0}</td>
+                <td class="${statusClass}">${statusText}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary edit-btn" data-id="${item.ItemID}" title="Edit item">
+                        <i class="fas fa-edit"></i>
+                        <span class="visually-hidden">Edit</span>
+                    </button>
+                    <button class="btn btn-sm btn-success add-inventory-btn" data-id="${item.ItemID}" title="Add to inventory">
+                        <i class="fas fa-plus"></i>
+                        <span class="visually-hidden">Add inventory</span>
+                    </button>
+                </td>
+            `;
+
+            tableBody.appendChild(row);
+        });
+
+        // 添加编辑按钮事件监听器
+        // Add edit button event listeners
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const itemId = this.getAttribute('data-id');
+                editItem(itemId);
+            });
+        });
+
+        // 添加库存按钮事件监听器
+        // Add inventory button event listeners
+        document.querySelectorAll('.add-inventory-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const itemId = this.getAttribute('data-id');
+                window.location.href = `/inventory?item_id=${itemId}`;
+            });
+        });
+    }
+
+    // 根据搜索词过滤物品
+    // Filter items based on search term
+    function filterItems(searchTerm) {
+        if (!searchTerm) {
+            renderItemTable(allItems);
+            return;
+        }
+
+        searchTerm = searchTerm.toLowerCase();
+        const filteredItems = allItems.filter(item =>
+            item.Name.toLowerCase().includes(searchTerm) ||
+            (item.Category && item.Category.toLowerCase().includes(searchTerm)) ||
+            (item.Description && item.Description.toLowerCase().includes(searchTerm))
+        );
+
+        renderItemTable(filteredItems);
+    }
+
+    // 编辑物品
+    // Edit item
+    function editItem(itemId) {
+        const item = allItems.find(item => item.ItemID == itemId);
+        if (!item) {
+            showErrorToast('Item not found');
+            return;
+        }
+
+        // 更改模态窗口标题
+        // Change modal title
+        document.getElementById('addItemModalLabel').textContent = 'Edit Item';
+
+        // 填充表单数据
+        // Fill form data
+        const form = document.getElementById('addItemForm');
+        document.getElementById('itemId').value = item.ItemID;
+        document.getElementById('itemName').value = item.Name;
+        document.getElementById('itemCategory').value = item.Category || '';
+        document.getElementById('itemUnit').value = item.DefaultUnit || '';
+        document.getElementById('itemDescription').value = item.Description || '';
+
+        // 显示模态窗口
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('addItemModal'));
+        modal.show();
+    }
+
+    // 保存物品（处理新增和更新）
+    // Save item (handle adding and updating)
+    function saveItem() {
+        // 获取表单数据
+        // Get form data
+        const form = document.getElementById('addItemForm');
+        const itemId = document.getElementById('itemId').value;
+
+        // 验证表单
+        // Validate form
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        // 创建数据对象
+        // Create data object
+        const itemData = {
+            name: document.getElementById('itemName').value,
+            category: document.getElementById('itemCategory').value,
+            unit: document.getElementById('itemUnit').value,
+            description: document.getElementById('itemDescription').value
+        };
+
+        // 确定是更新还是新增
+        // Determine if update or add new
+        let url = '/api/item/add';
+        let method = 'POST';
+
+        if (itemId) {
+            url = '/api/item/update';
+            method = 'POST';
+            itemData.item_id = itemId;
+        }
+
+        // 发送请求
+        // Send request
+        fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(itemData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || 'Network response error');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Operation successful:', data);
+
+                // 显示成功消息
+                // Show success message
+                const message = itemId ? 'Item updated successfully' : 'Item added successfully';
+                showSuccessToast(message);
+
+                // 关闭模态窗口
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addItemModal'));
+                if (modal) {
+                    modal.hide();
+                }
+
+                // 重置表单
+                // Reset form
+                resetForm();
+
+                // 重新加载物品数据
+                // Reload item data
+                loadItems();
+            })
+            .catch(error => {
+                console.error('Operation failed:', error);
+                showErrorToast(`Operation failed: ${error.message}`);
+            });
+    }
+
+    // 重置表单
+    // Reset form
+    function resetForm() {
+        // 重置所有表单字段
+        // Reset all form fields
+        document.getElementById('itemName').value = '';
+        document.getElementById('itemCategory').value = '';
+        document.getElementById('itemUnit').value = '';
+        document.getElementById('itemDescription').value = '';
+
+        // 重置验证样式
+        // Reset validation styles
+        const formInputs = document.querySelectorAll('#addItemForm .form-control');
+        formInputs.forEach(input => {
+            input.classList.remove('is-invalid');
+            input.classList.remove('is-valid');
+        });
+
+        // 重置ID字段（为新增设置）
+        // Reset ID field (for new items)
+        document.getElementById('itemId').value = '';
+
+        // 重置模态窗口标题
+        // Reset modal title
+        document.getElementById('addItemModalLabel').textContent = 'Add Item';
+    }
+
+    // 绑定事件
+    // Bind events
+    function bindEvents() {
+        // 搜索框
+        // Search box
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('input', function() {
+            filterItems(this.value);
+        });
+
+        // 清除搜索按钮
+        // Clear search button
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        clearSearchBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            filterItems('');
+        });
+
+        // 刷新按钮
+        // Refresh button
+        const refreshBtn = document.getElementById('refreshBtn');
+        refreshBtn.addEventListener('click', function() {
+            loadItems();
+        });
+
+        // 保存按钮
+        // Save button
+        const saveItemBtn = document.getElementById('saveItemBtn');
+        saveItemBtn.addEventListener('click', function() {
+            saveItem();
+        });
+
+        // 当模态窗口关闭时重置表单
+        // Reset form when modal is closed
+        const modal = document.getElementById('addItemModal');
+        modal.addEventListener('hidden.bs.modal', function() {
+            resetForm();
+        });
+    }
+
+    // 页面加载完成后执行
+    // Execute when page is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Page loaded, initializing...');
+
+        // 检查Bootstrap是否加载
+        // Check if Bootstrap is loaded
+        if (typeof bootstrap === 'undefined') {
+            console.error('Bootstrap is not loaded!');
+            alert('Error: Bootstrap JavaScript library is not loaded. Functionality will be limited.');
+        } else {
+            console.log('Bootstrap is loaded:', bootstrap !== undefined);
+        }
+
+        // 加载物品数据
+        // Load item data
+        loadItems();
+
+        // 绑定事件
+        // Bind events
+        bindEvents();
+    });
+
+    // 尝试关闭模态窗口的不同方法
+    // Different methods to try closing the modal
+    function tryCloseModal() {
+        // 方法1: 使用Bootstrap的Modal构造函数
+        // Method 1: Using Bootstrap's Modal constructor
+        try {
+            const modalElement = document.getElementById('addItemModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) {
+                modalInstance.hide();
+                return;
+            }
+        } catch (e) {
+            console.warn('Method 1 failed:', e);
+        }
+
+        // 方法2: 如果可用，使用jQuery
+        // Method 2: Using jQuery if available
+        if (typeof $ !== 'undefined') {
+            try {
+                $('#addItemModal').modal('hide');
+                return;
+            } catch (e) {
+                console.warn('Method 2 failed:', e);
+            }
+        }
+
+        // 方法3: 尝试点击关闭按钮
+        // Method 3: Try clicking the close button
+        try {
+            document.querySelector('#addItemModal .btn-close').click();
+        } catch (e) {
+            console.warn('Method 3 failed:', e);
+        }
+    }
+</script>
+{% endblock %}

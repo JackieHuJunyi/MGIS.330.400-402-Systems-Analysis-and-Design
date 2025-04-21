@@ -1,0 +1,816 @@
+{% extends "layout.html" %} {% block page_title %}Product Management{% endblock %} {% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Product Management</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="/">Home</a></li>
+        <li class="breadcrumb-item active">Product Management</li>
+    </ol>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Product Management</h6>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary" id="newProductBtn">
+                                <i class="bi bi-plus-circle"></i> Add Product
+            </button>
+                        <button type="button" class="btn btn-secondary" id="exportProductsBtn">
+                                <i class="bi bi-download"></i> Export
+            </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="productsTable" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Price</th>
+                                    <th>Category</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Product data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row">
+        <!-- Best Selling Products Chart -->
+        <div class="col-md-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Best Selling Products</h6>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="bestsellers-7d" data-days="7">7 Days</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary active" id="bestsellers-30d" data-days="30">30 Days</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="bestsellers-90d" data-days="90">90 Days</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 300px; position: relative;">
+                        <canvas id="bestSellersChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Categories Chart -->
+        <div class="col-md-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Sales by Category</h6>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="category-7d" data-days="7">7 Days</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary active" id="category-30d" data-days="30">30 Days</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="category-90d" data-days="90">90 Days</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 300px; position: relative;">
+                        <canvas id="categorySalesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Product Modal -->
+<div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="productModalLabel">Add New Product</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="productForm">
+                    <input type="hidden" id="productId">
+                    <div class="mb-3">
+                        <label for="productName" class="form-label">Product Name</label>
+                        <input type="text" class="form-control" id="productName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="productDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="productDescription" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="productPrice" class="form-label">Price</label>
+                            <input type="number" class="form-control" id="productPrice" step="0.01" min="0" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="productCategory" class="form-label">Category</label>
+                            <select class="form-select" id="productCategory" required>
+                                    <!-- Categories will be loaded here -->
+                                </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="productStatus" class="form-label">Status</label>
+                        <select class="form-select" id="productStatus" required>
+                                <option value="Available">Available</option>
+                                <option value="Out of Stock">Out of Stock</option>
+                                <option value="Discontinued">Discontinued</option>
+                            </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveProductBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Category Modal -->
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="categoryModalLabel">Add New Category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="categoryForm">
+                    <input type="hidden" id="categoryId">
+                    <div class="mb-3">
+                        <label for="categoryName" class="form-label">Category Name</label>
+                        <input type="text" class="form-control" id="categoryName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="categoryDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="categoryDescription" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveCategoryBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 确保toast容器存在
+        if (!document.querySelector('.toast-container')) {
+            const toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(toastContainer);
+        }
+
+        // Initialize the page
+        loadCategories();
+        loadProducts();
+        loadBestSellers(30);
+        loadCategorySales(30);
+        bindEvents();
+    });
+
+    function loadCategories() {
+        fetch('/api/products/categories')
+            .then(response => response.json())
+            .then(data => {
+                populateCategorySelects(data);
+            })
+            .catch(error => {
+                console.error('Error loading categories:', error);
+                showToast('Failed to load categories', 'danger');
+            });
+    }
+
+    function populateCategorySelects(categories) {
+        const selects = ['categoryFilter', 'productCategory'];
+        selects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (!select) {
+                console.log(`Select element with ID '${selectId}' not found`);
+                return;
+            }
+
+            select.innerHTML = `<option value="">All Categories</option>`;
+            categories.forEach(category => {
+                select.innerHTML += `<option value="${category.id}">${category.name}</option>`;
+            });
+        });
+    }
+
+    function loadProducts() {
+        const categoryFilter = document.getElementById('categoryFilter');
+        const searchInput = document.getElementById('searchInput');
+
+        const categoryId = categoryFilter ? categoryFilter.value : '';
+        const searchTerm = searchInput ? searchInput.value : '';
+
+        fetch(`/api/products?category=${categoryId || ''}&search=${searchTerm || ''}`)
+            .then(response => response.json())
+            .then(data => {
+                renderProductsTable(data);
+            })
+            .catch(error => {
+                console.error('Error loading products:', error);
+                showToast('Failed to load products', 'danger');
+            });
+    }
+
+    function renderProductsTable(products) {
+        const tbody = document.querySelector('#productsTable tbody');
+        if (!tbody) {
+            console.error('Products table body not found');
+            return;
+        }
+
+        tbody.innerHTML = '';
+
+        if (!products || products.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="6" class="text-center">No products found</td>';
+            tbody.appendChild(row);
+            return;
+        }
+
+        products.forEach(product => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                    <td>${product.id || ''}</td>
+                    <td>${product.name || ''}</td>
+                    <td>$${(product.price || 0).toFixed(2)}</td>
+                    <td>${product.category || 'Uncategorized'}</td>
+                    <td>
+                        <span class="badge bg-success">
+                            ${product.status || 'Active'}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-info edit-product" data-id="${product.id}" aria-label="Edit product">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger delete-product" data-id="${product.id}" aria-label="Delete product">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        // 绑定编辑和删除按钮事件
+        bindTableButtons();
+    }
+
+    // 为表格中的按钮绑定事件
+    function bindTableButtons() {
+        // Edit buttons
+        document.querySelectorAll('.edit-product').forEach(button => {
+            button.addEventListener('click', function() {
+                const productId = this.getAttribute('data-id');
+                editProduct(productId);
+            });
+        });
+
+        // Delete buttons
+        document.querySelectorAll('.delete-product').forEach(button => {
+            button.addEventListener('click', function() {
+                const productId = this.getAttribute('data-id');
+                if (confirm('Are you sure you want to delete this product?')) {
+                    deleteProduct(productId);
+                }
+            });
+        });
+    }
+
+    // Load best-selling products data and render chart
+    function loadBestSellers(days = 30) {
+        console.log(`Loading best-selling products data for the last ${days} days`);
+
+        // Show loading state
+        const container = document.querySelector('.chart-container');
+        if (!container) return;
+
+        container.innerHTML = '<div class="d-flex justify-content-center align-items-center h-100"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+        fetch(`/api/products/bestsellers?days=${days}&limit=5`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(`Successfully retrieved best-selling products data:`, data);
+
+                // Check if data is empty
+                if (!data || data.length === 0) {
+                    console.log(`No sales data for the last ${days} days`);
+                    showToast(`No sales data for the last ${days} days`, 'warning');
+                    // Restore chart container and show no data message
+                    container.innerHTML = '<canvas id="bestSellersChart"></canvas>';
+                    renderBestSellersChart([], days);
+                    return;
+                }
+
+                // Recreate canvas
+                container.innerHTML = '<canvas id="bestSellersChart"></canvas>';
+                renderBestSellersChart(data, days);
+            })
+            .catch(error => {
+                console.error(`Error loading best-selling products data:`, error);
+                showToast(`Failed to load sales data: ${error.message}`, 'danger');
+
+                // Restore chart container and show error state
+                container.innerHTML = '<canvas id="bestSellersChart"></canvas>';
+                renderBestSellersChart([], days);
+            });
+    }
+
+    // Render best-selling products chart
+    function renderBestSellersChart(data, days) {
+        const canvas = document.getElementById('bestSellersChart');
+        if (!canvas) {
+            console.error('Best sellers chart canvas not found');
+            return;
+        }
+
+        const ctx = canvas.getContext('2d');
+
+        // Fix chart destruction logic
+        if (window.bestSellersChart && typeof window.bestSellersChart.destroy === 'function') {
+            window.bestSellersChart.destroy();
+        }
+
+        const labels = data.map(item => item.name);
+        const quantities = data.map(item => item.total_quantity);
+
+        // Handle no data scenario
+        if (labels.length === 0) {
+            // Show no data message
+            window.bestSellersChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['No Data'],
+                    datasets: [{
+                        label: 'Sales Quantity',
+                        data: [0],
+                        backgroundColor: 'rgba(200, 200, 200, 0.3)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `No sales data for the last ${days} days`
+                        }
+                    }
+                }
+            });
+            return;
+        }
+
+        window.bestSellersChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Sales Quantity',
+                    data: quantities,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.7)',
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 206, 86, 0.7)',
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(153, 102, 255, 0.7)',
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Quantity Sold'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `Best-Selling Products - Last ${days} Days`
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const item = data[context.dataIndex];
+                                const quantity = item.total_quantity;
+                                const revenue = new Intl.NumberFormat('en-US', {
+                                    style: 'currency',
+                                    currency: 'USD'
+                                }).format(item.total_revenue);
+                                const orders = item.order_count;
+                                return [
+                                    `Quantity: ${quantity}`,
+                                    `Revenue: ${revenue}`,
+                                    `Orders: ${orders}`
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Load product category sales data and render chart
+    function loadCategorySales(days = 30) {
+        console.log(`Loading category sales data for the last ${days} days`);
+
+        // Show loading state
+        const container = document.querySelectorAll('.chart-container')[1];
+        if (!container) return;
+
+        container.innerHTML = '<div class="d-flex justify-content-center align-items-center h-100"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+        fetch(`/api/products/category-stats?days=${days}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(`Successfully retrieved category sales data:`, data);
+
+                // Check if data is empty
+                if (!data || data.length === 0) {
+                    console.log(`No category sales data for the last ${days} days`);
+                    showToast(`No category sales data for the last ${days} days`, 'warning');
+                    // Restore chart container and show no data message
+                    container.innerHTML = '<canvas id="categorySalesChart"></canvas>';
+                    renderCategorySalesChart([], days);
+                    return;
+                }
+
+                // Recreate canvas
+                container.innerHTML = '<canvas id="categorySalesChart"></canvas>';
+                renderCategorySalesChart(data, days);
+            })
+            .catch(error => {
+                console.error(`Error loading category sales data:`, error);
+                showToast(`Failed to load category sales data: ${error.message}`, 'danger');
+
+                // Restore chart container and show error state
+                container.innerHTML = '<canvas id="categorySalesChart"></canvas>';
+                renderCategorySalesChart([], days);
+            });
+    }
+
+    // Render product category sales chart
+    function renderCategorySalesChart(data, days) {
+        const canvas = document.getElementById('categorySalesChart');
+        if (!canvas) {
+            console.error('Category sales chart canvas not found');
+            return;
+        }
+
+        const ctx = canvas.getContext('2d');
+
+        // Fix chart destruction logic
+        if (window.categorySalesChart && typeof window.categorySalesChart.destroy === 'function') {
+            window.categorySalesChart.destroy();
+        }
+
+        const labels = data.map(item => item.category);
+        const values = data.map(item => item.percentage);
+
+        // Handle no data scenario
+        if (labels.length === 0) {
+            // Show no data message
+            window.categorySalesChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['No Data'],
+                    datasets: [{
+                        data: [100],
+                        backgroundColor: ['rgba(200, 200, 200, 0.3)'],
+                        borderColor: ['rgba(200, 200, 200, 0.5)'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `No category sales data for the last ${days} days`
+                        }
+                    }
+                }
+            });
+            return;
+        }
+
+        window.categorySalesChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.7)',
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 206, 86, 0.7)',
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(153, 102, 255, 0.7)',
+                        'rgba(255, 159, 64, 0.7)',
+                        'rgba(199, 199, 199, 0.7)',
+                        'rgba(83, 102, 255, 0.7)',
+                        'rgba(78, 183, 137, 0.7)',
+                        'rgba(225, 141, 98, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(199, 199, 199, 1)',
+                        'rgba(83, 102, 255, 1)',
+                        'rgba(78, 183, 137, 1)',
+                        'rgba(225, 141, 98, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `Category Sales - Last ${days} Days`
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const item = data[context.dataIndex];
+                                const percentage = item.percentage.toFixed(1);
+                                const revenue = new Intl.NumberFormat('en-US', {
+                                    style: 'currency',
+                                    currency: 'USD'
+                                }).format(item.total_revenue);
+                                const quantity = item.total_quantity;
+                                const orders = item.order_count;
+                                return [
+                                    `${item.category}: ${percentage}%`,
+                                    `Revenue: ${revenue}`,
+                                    `Quantity: ${quantity}`,
+                                    `Orders: ${orders}`
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function bindEvents() {
+        // New Product button
+        document.getElementById('newProductBtn').addEventListener('click', function() {
+            const productForm = document.getElementById('productForm');
+            if (productForm) productForm.reset();
+
+            const productModalLabel = document.getElementById('productModalLabel');
+            if (productModalLabel) productModalLabel.textContent = 'New Product';
+
+            const productModal = document.getElementById('productModal');
+            if (productModal) {
+                const modal = new bootstrap.Modal(productModal);
+                modal.show();
+            }
+        });
+
+        // Save Product button
+        const saveProductBtn = document.getElementById('saveProductBtn');
+        if (saveProductBtn) {
+            saveProductBtn.addEventListener('click', saveProduct);
+        }
+
+        // Search button
+        const searchBtn = document.getElementById('searchBtn');
+        if (searchBtn) {
+            searchBtn.addEventListener('click', loadProducts);
+        }
+
+        // Export button
+        const exportBtn = document.getElementById('exportProductsBtn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', exportProducts);
+        }
+
+        // Time period buttons for bestsellers chart
+        document.querySelectorAll('#bestsellers-7d, #bestsellers-30d, #bestsellers-90d').forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons in group
+                document.querySelectorAll('#bestsellers-7d, #bestsellers-30d, #bestsellers-90d').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                // Add active class to clicked button
+                this.classList.add('active');
+                // Get selected days and reload data
+                const days = parseInt(this.getAttribute('data-days'));
+                loadBestSellers(days);
+            });
+        });
+
+        // Time period buttons for category chart
+        document.querySelectorAll('#category-7d, #category-30d, #category-90d').forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons in group
+                document.querySelectorAll('#category-7d, #category-30d, #category-90d').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                // Add active class to clicked button
+                this.classList.add('active');
+                // Get selected days and reload data
+                const days = parseInt(this.getAttribute('data-days'));
+                loadCategorySales(days);
+            });
+        });
+    }
+
+    function saveProduct() {
+        const productName = document.getElementById('productName');
+        const productCategory = document.getElementById('productCategory');
+        const productPrice = document.getElementById('productPrice');
+        const productDescription = document.getElementById('productDescription');
+        const productStatus = document.getElementById('productStatus');
+
+        if (!productName || !productCategory || !productPrice) {
+            showToast('Missing required fields', 'danger');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('name', productName.value);
+        formData.append('category', productCategory.value);
+        formData.append('price', productPrice.value);
+        formData.append('description', productDescription ? productDescription.value : '');
+        formData.append('status', productStatus ? productStatus.value : 'Available');
+
+        fetch('/api/products', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Product saved successfully', 'success');
+                    const productModal = document.getElementById('productModal');
+                    if (productModal) {
+                        const modal = bootstrap.Modal.getInstance(productModal);
+                        if (modal) modal.hide();
+                    }
+                    loadProducts();
+                } else {
+                    showToast(data.error || 'Failed to save product', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving product:', error);
+                showToast('Failed to save product', 'danger');
+            });
+    }
+
+    function editProduct(productId) {
+        fetch(`/api/products/${productId}`)
+            .then(response => response.json())
+            .then(data => {
+                const productName = document.getElementById('productName');
+                const productCategory = document.getElementById('productCategory');
+                const productPrice = document.getElementById('productPrice');
+                const productDescription = document.getElementById('productDescription');
+                const productStatus = document.getElementById('productStatus');
+
+                if (productName) productName.value = data.name || '';
+                if (productCategory) productCategory.value = data.category || '';
+                if (productPrice) productPrice.value = data.price || 0;
+                if (productDescription) productDescription.value = data.description || '';
+                if (productStatus) productStatus.value = data.status || 'Available';
+
+                const productModalLabel = document.getElementById('productModalLabel');
+                if (productModalLabel) productModalLabel.textContent = 'Edit Product';
+
+                const productModal = document.getElementById('productModal');
+                if (productModal) {
+                    const modal = new bootstrap.Modal(productModal);
+                    modal.show();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading product details:', error);
+                showToast('Failed to load product details', 'danger');
+            });
+    }
+
+    function deleteProduct(productId) {
+        fetch(`/api/products/${productId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Product deleted successfully', 'success');
+                    loadProducts();
+                } else {
+                    showToast(data.error || 'Failed to delete product', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting product:', error);
+                showToast('Failed to delete product', 'danger');
+            });
+    }
+
+    function exportProducts() {
+        fetch('/api/products/export')
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'products.csv';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+            })
+            .catch(error => {
+                console.error('Error exporting products:', error);
+                showToast('Failed to export products', 'danger');
+            });
+    }
+
+    function showToast(message, type = 'success') {
+        const toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            console.error('Toast container not found');
+            return;
+        }
+
+        const toastId = 'toast-' + Date.now();
+        const toastHtml = `
+                <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <div class="bg-${type} rounded me-2" style="width: 20px; height: 20px;"></div>
+                        <strong class="me-auto">Notification</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                <div class="toast-body">${message}</div>
+            </div>
+        `;
+
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        const toastElement = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+
+        // Auto-remove toast after it's hidden
+        toastElement.addEventListener('hidden.bs.toast', function() {
+            toastElement.remove();
+        });
+    }
+</script>
+{% endblock %}

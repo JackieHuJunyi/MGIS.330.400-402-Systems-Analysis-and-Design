@@ -1,0 +1,78 @@
+/* Social Welfare Report Styles */
+
+
+/* Chart container styles */
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+
+/* Progress bar styling */
+
+.progress {
+    height: 20px;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    transition: width 0.6s ease;
+}
+
+
+/* Key metrics cards */
+
+.card {
+    border-radius: 8px;
+    transition: transform 0.3s, box-shadow 0.3s;
+    margin-bottom: 15px;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.card-body {
+    padding: 1.25rem;
+}
+
+.card-title {
+    font-size: 1rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+
+/* Table styles */
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.table th {
+    font-weight: bold;
+    background-color: #f8f9fa;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+
+/* Chart specific styles */
+
+#chart1,
+#chart2 {
+    max-height: 300px;
+    width: 100% !important;
+    height: 100% !important;
+}
