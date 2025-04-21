@@ -7,9 +7,32 @@ import calendar
 import locale
 import logging
 from sqlalchemy.exc import SQLAlchemyError
+from decimal import Decimal
+from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import SQLAlchemyError
+import logging
+from models import db, Sale, Purchase, PurchaseItem, Item, Receivable, Payable, Customer, Vendor, BuyList # Added BuyList
+
+# Make sure logging is configured if not already
+logger = logging.getLogger(__name__)
 
 from models import db, Sale, Purchase, PurchaseItem, Item, Receivable, Payable, Customer, Vendor
-
+ingredient_prices = {
+    "High-Gluten Flour": Decimal("4.50"), # Use Decimal for prices
+    "Tomato Sauce": Decimal("3.00"),
+    "Mozzarella Cheese": Decimal("6.80"),
+    "Pepperoni": Decimal("8.00"),
+    "Mushrooms": Decimal("3.50"),
+    "Green Peppers": Decimal("2.80"),
+    "Onions": Decimal("1.50"),
+    "Olive Oil": Decimal("5.20"),
+    "Black Olives": Decimal("4.00"),
+    "Italian Seasoning": Decimal("2.50"),
+    "Ham Slices": Decimal("7.50"),
+    "Pineapple Chunks": Decimal("3.80"),
+    "Basil Leaves": Decimal("1.20")
+    # Add more items and their prices if needed
+}
 # 设置菜品成本预设（菜品ID: 成本）
 PRODUCT_COST_PRESET = {
     1: 5.50,   # 比萨基础
@@ -217,7 +240,62 @@ def get_financial_summary(now):
     except Exception as e:
         logger.warning(f"Error calculating product margins: {str(e)}")
         product_margins = []
-    
+    total_purchases=1000
+    # 4. 计算总采购成本 (NEW LOGIC based on buy_list)
+    total_purchase_cost = Decimal(0.0) # Initialize with Decimal
+    try:
+        # Query all entries from the buy_list table
+        # Use joinedload to efficiently fetch the related Item details
+        buy_list_entries = db.session.query(BuyList).options(joinedload(BuyList.item)).all()
+
+        if not buy_list_entries:
+            logger.info("The buy_list table is empty. Total purchase cost is 0.")
+        else:
+            logger.info(f"Calculating total purchase cost from {len(buy_list_entries)} entries in buy_list.")
+
+            for entry in buy_list_entries:
+                if entry.item: # Check if the related item exists
+                    item_name = entry.item.Name
+                    # Safely convert InventoryQuantity (potentially float) to Decimal
+                    try:
+                        quantity = Decimal(str(entry.InventoryQuantity)) 
+                    except (ValueError, TypeError):
+                        logger.warning(f"Invalid quantity format for BuyListID {entry.BuyListID}: '{entry.InventoryQuantity}'. Skipping entry.")
+                        continue
+
+                    # Look up the unit price from the defined map (case-sensitive)
+                    unit_price = ingredient_prices.get(item_name) # Returns None if not found
+
+                    if unit_price is None:
+                        # Log a warning if an item from buy_list doesn't have a price defined
+                        logger.warning(f"Price not found for item: '{item_name}' (ItemID: {entry.ItemID}) in ingredient_prices map. Cost for this entry will be 0.")
+                        unit_price = Decimal(0.0) # Use Decimal 0 if price not found
+
+                    # Calculate the cost for this entry and add to the total
+                    entry_cost = unit_price * quantity
+                    total_purchase_cost += entry_cost
+                    # Optional: Log each step for debugging
+                    # logger.debug(f"  BuyListID: {entry.BuyListID}, Item: '{item_name}', Qty: {quantity}, UnitPrice: {unit_price}, EntryCost: {entry_cost}, RunningTotal: {total_purchase_cost}")
+
+                else:
+                    # Log a warning if a buy_list entry doesn't link to a valid item
+                    logger.warning(f"BuyList entry {entry.BuyListID} is missing associated item data. Skipping this entry.")
+
+            logger.info(f"Successfully calculated total purchase cost from buy_list: {total_purchase_cost}")
+
+    except SQLAlchemyError as db_err:
+        logger.error(f"Database error occurred while calculating purchase cost from buy_list: {db_err}", exc_info=True)
+        total_purchase_cost = Decimal(0.0) # Default to 0 on database error
+    except Exception as e:
+        logger.error(f"An unexpected error occurred calculating purchase cost from buy_list: {e}", exc_info=True)
+        total_purchase_cost = Decimal(0.0) # Default to 0 on other errors
+
+    # --- End of new calculation block ---
+
+    # Assign the newly calculated cost to the variable used in the summary
+    total_purchases = total_purchase_cost 
+
+
     # 整合所有数据
     financial_summary = {
         'total_revenue': total_revenue,

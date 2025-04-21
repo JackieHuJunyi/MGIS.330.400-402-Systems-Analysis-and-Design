@@ -41,16 +41,28 @@
                                 <i class="bi bi-speedometer2 me-2"></i> Sales Dashboard
                             </a>
                         </li>
-                        <li class="nav-item">
+                        <!-- <li class="nav-item">
                             <a href="/inventory" class="nav-link" data-page="inventory">
                                 <i class="bi bi-boxes me-2"></i> Inventory Management
                             </a>
-                        </li>
+                        </li> -->
+                        <!-- … inventory 这一项后面，插入以下代码 … -->
                         <li class="nav-item">
-                            <a href="/orders/management" class="nav-link" data-page="orders_management">
-                                <i class="bi bi-bag-check me-2"></i> Order Management
+                            <a href="/inventory" class="nav-link" data-page="inventory">
+                            <i class="bi bi-boxes me-2"></i> Inventory Management
                             </a>
                         </li>
+                            <!-- 新增 Purchase Management -->
+                            <li class="nav-item">
+                                <a href="/inventory/buy-list" class="nav-link" data-page="purchase">
+                                <i class="bi bi-cart me-2"></i> Purchase Management
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="/orders/management" class="nav-link" data-page="orders_management">
+                                <i class="bi bi-bag-check me-2"></i> Order Management
+                                </a>
+                            </li>
                         <li class="nav-item">
                             <a href="/staff/management" class="nav-link" data-page="staff_management">
                                 <i class="bi bi-people-fill me-2"></i> Staff Management

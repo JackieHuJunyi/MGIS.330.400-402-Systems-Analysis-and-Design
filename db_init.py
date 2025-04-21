@@ -2,7 +2,8 @@ import random
 from datetime import datetime, timedelta, date
 from decimal import Decimal # Import Decimal for precise price handling
 from models import db, Dish, Item, Inventory, DishIngredient, Vendor, Purchase, PurchaseItem, Sale, SaleDish, Customer, Staff, Feedback, Payable, Receivable # Ensure Receivable is imported
-
+from datetime import datetime, timedelta
+from models import BuyList, Item, Vendor
 # init_db_data 函数保持不变，但内部的 Receivable 创建逻辑已修改
 def init_db_data():
     """Initialize the database and fill with sample data (English)"""
@@ -260,6 +261,27 @@ def init_db_data():
     db.session.add_all(staffs)
     db.session.commit()
 
+
+    # —— 6.x BuyList（采购清单）示例数据，50 条确定性记录 —— 
+    # 先查询所有现有的 Item 和 Vendor
+    items = Item.query.order_by(Item.ItemID).all()
+    vendors = Vendor.query.order_by(Vendor.VendorID).all()
+
+    # 定义起始日期（50 天前），数量从 5.0 开始循环递增
+    start_date = datetime.now() - timedelta(days=49)
+
+    buy_list_entries = [
+        BuyList(
+            ItemID=items[idx % len(items)].ItemID,
+            InventoryQuantity=5.0 + float(idx % 10),
+            VendorID=vendors[(idx // len(items)) % len(vendors)].VendorID,
+            PurchaseDate=start_date + timedelta(days=idx)
+        )
+        for idx in range(50)
+    ]
+
+    db.session.add_all(buy_list_entries)
+    db.session.commit()
     # Add Customers (English, Increased Count: 20)
     # —— 固定 20 位顾客数据（部分 ≥60 岁，部分 <60 岁） —— #
     customers = []

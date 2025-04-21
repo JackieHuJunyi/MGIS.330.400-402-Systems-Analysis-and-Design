@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta, date
 from sqlalchemy import func
 from decimal import Decimal # Ensure Decimal is imported
-
+from sqlalchemy.orm import relationship
 # 替代relativedelta函数
 def _relativedelta(dt1, dt2):
     years = dt1.year - dt2.year
@@ -82,6 +82,31 @@ class Item(db.Model):
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else None,
             'CurrentStock': current_stock # Include stock level
         }
+class BuyList(db.Model):
+    __tablename__ = 'buy_list' # Table name in the database
+    BuyListID = db.Column(db.Integer, primary_key=True)
+    ItemID = db.Column(db.Integer, db.ForeignKey('item.ItemID'), nullable=False)
+    InventoryQuantity = db.Column(db.Float, nullable=False)
+    VendorID = db.Column(db.Integer, db.ForeignKey('vendor.VendorID'), nullable=False)
+    PurchaseDate = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships to easily access related data
+    item = relationship("Item") # Relationship to the Item model
+    vendor = relationship("Vendor") # Relationship to the Vendor model
+
+    def to_dict(self):
+        """Converts the BuyList object to a dictionary."""
+        return {
+            'BuyListID': self.BuyListID,
+            'ItemID': self.ItemID,
+            'InventoryName': self.item.Name if self.item else 'Unknown Item', # Get name via relationship
+            'InventoryQuantity': self.InventoryQuantity,
+            'ItemUnit': self.item.DefaultUnit if self.item else 'unit', # Get unit via relationship
+            'VendorID': self.VendorID,
+            'SupplierName': self.vendor.Name if self.vendor else 'Unknown Vendor', # Get name via relationship
+            'PurchaseDate': self.PurchaseDate.strftime('%Y-%m-%d %H:%M:%S') if self.PurchaseDate else None
+        }
+
 
 # 库存模型
 class Inventory(db.Model):

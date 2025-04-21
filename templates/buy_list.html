@@ -1,0 +1,75 @@
+{% extends "layout.html" %}
+{% block page_title %}Purchase Management{% endblock %}
+{% block page_header %}Purchase Management{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <button class="btn btn-info" id="purchaseRefreshBtn">
+    <i class="fas fa-sync-alt"></i> Refresh Data
+  </button>
+</div>
+
+<div class="card shadow mb-4">
+  <div class="card-header py-3">
+    <h6 class="m-0 font-weight-bold text-primary">Purchase List</h6>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover" id="purchaseTable" width="100%" cellspacing="0">
+        <thead>
+          <tr>
+            <th>Purchase ID</th>
+            <th>Item Name</th>
+            <th>Quantity</th>
+            <th>Unit</th>
+            <th>Vendor</th>
+            <th>Purchase Date</th>
+          </tr>
+        </thead>
+        <tbody id="purchaseTableBody">
+          <tr><td colspan="6" class="text-center">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function loadPurchaseList() {
+  const tbody = document.getElementById('purchaseTableBody');
+  tbody.innerHTML = '<tr><td colspan="6" class="text-center">Loading...</td></tr>';
+  fetch('/api/buy-list')
+    .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)))
+    .then(data => {
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No records found</td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      data.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${item.BuyListID}</td>
+          <td>${item.InventoryName || '-'}</td>
+          <td>${item.InventoryQuantity}</td>
+          <td>${item.ItemUnit || '-'}</td>
+          <td>${item.SupplierName || '-'}</td>
+          <td>${item.PurchaseDate || '-'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    })
+    .catch(e => {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">${e.error || e}</td></tr>`;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadPurchaseList();
+  document.getElementById('purchaseRefreshBtn')
+          .addEventListener('click', loadPurchaseList);
+});
+</script>
+{% endblock %}

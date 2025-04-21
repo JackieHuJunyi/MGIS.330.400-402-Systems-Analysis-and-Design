@@ -5,6 +5,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta, date
 from decimal import Decimal
 from flask import request, jsonify
+from blueprints.buy_list_bp import buy_list_bp, buy_list_api
+from blueprints.buy_list_bp import buy_list_bp, buy_list_api
 # 替代 dateutil 的相对日期函数，以防导入失败
 def custom_relativedelta(dt1, dt2):
     years = dt1.year - dt2.year
@@ -51,6 +53,8 @@ db.init_app(app)
 # Register Blueprints
 app.register_blueprint(inventory_bp)
 app.register_blueprint(inventory_api)
+app.register_blueprint(buy_list_bp)    # <-- 新增
+app.register_blueprint(buy_list_api)
 app.register_blueprint(item_bp, url_prefix='/items')
 app.register_blueprint(item_api)
 app.register_blueprint(order_bp, url_prefix='/orders')

@@ -128,8 +128,6 @@
                                 <th>Channel</th>
                                 <th>Type</th>
                                 <th>Amount</th>
-                                <th>Status</th>
-                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody id="recentSalesTable">
@@ -342,13 +340,8 @@
                             <td>${formatDateTime(sale.SaleDate)}</td>
                             <td>${sale.OrderType || 'N/A'}</td>
                             <td>${sale.Channel || 'N/A'}</td>
-                            <td>$${parseFloat(sale.TotalAmount).toFixed(2)}</td>
+                            <td>${parseFloat(sale.TotalAmount).toFixed(2)}</td>
                             <td>${renderStatusBadge(sale.Status)}</td>
-                            <td>
-                                <button class="btn btn-sm btn-info view-sale" data-sale-id="${sale.SaleID}">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                            </td>
                         `;
                         tableBody.appendChild(row);
                     });

@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify
 from models import db, Item, Inventory, Vendor # Import necessary models and db
 from datetime import datetime
+from models import db, Inventory, BuyList   # <-- 新增 BuyList
 
 # Blueprint for inventory pages
 inventory_bp = Blueprint('inventory', __name__, template_folder='../templates')
@@ -176,61 +177,93 @@ def add_inventory_item():
 
 # API to record stock in (increase stock level for an existing item)
 @inventory_api.route('/stock_in', methods=['POST'])
-def record_stock_in():
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
+# def record_stock_in():
+#     try:
+#         data = request.get_json()
+#         if not data:
+#             return jsonify({"error": "No data provided"}), 400
 
-        item_id = data.get('item_id')
-        quantity_added = data.get('quantity_added')
-        # vendor_id = data.get('vendor_id') # Optional vendor tracking
+#         item_id = data.get('item_id')
+#         quantity_added = data.get('quantity_added')
+#         # vendor_id = data.get('vendor_id') # Optional vendor tracking
 
-        if not item_id or quantity_added is None:
-            return jsonify({"error": "Missing required fields: item_id and quantity_added"}), 400
+#         if not item_id or quantity_added is None:
+#             return jsonify({"error": "Missing required fields: item_id and quantity_added"}), 400
 
-        try:
-            item_id_int = int(item_id)
-            quantity_added_float = float(quantity_added)
-        except (ValueError, TypeError):
-            return jsonify({"error": "Invalid format for item_id or quantity_added"}), 400
+#         try:
+#             item_id_int = int(item_id)
+#             quantity_added_float = float(quantity_added)
+#         except (ValueError, TypeError):
+#             return jsonify({"error": "Invalid format for item_id or quantity_added"}), 400
 
-        if quantity_added_float <= 0:
-            return jsonify({"error": "Quantity added must be a positive number"}), 400
+#         if quantity_added_float <= 0:
+#             return jsonify({"error": "Quantity added must be a positive number"}), 400
 
-        # Find the inventory record for the item
-        inventory = Inventory.query.filter_by(ItemID=item_id_int).first()
+#         # Find the inventory record for the item
+#         inventory = Inventory.query.filter_by(ItemID=item_id_int).first()
 
-        if not inventory:
-            # Check if the item itself exists, provide a more specific error
-            item_exists = Item.query.get(item_id_int)
-            if not item_exists:
-                 return jsonify({"error": f"Item with ID {item_id_int} not found."}), 404
-            else:
-                # This case shouldn't happen if all items have inventory records initially
-                # But good to handle just in case.
-                 return jsonify({"error": f"No inventory record found for item ID {item_id_int}. Cannot record stock-in."}), 404
+#         if not inventory:
+#             # Check if the item itself exists, provide a more specific error
+#             item_exists = Item.query.get(item_id_int)
+#             if not item_exists:
+#                  return jsonify({"error": f"Item with ID {item_id_int} not found."}), 404
+#             else:
+#                 # This case shouldn't happen if all items have inventory records initially
+#                 # But good to handle just in case.
+#                  return jsonify({"error": f"No inventory record found for item ID {item_id_int}. Cannot record stock-in."}), 404
        
-        # Update stock level
-        inventory.StockLevel += quantity_added_float
-        inventory.last_update = datetime.now()
-        # Optionally update last_purchase_date if applicable and data is provided
-        # if vendor_id:
-        #    inventory.VendorID = vendor_id # Update vendor if provided
-        #    inventory.last_purchase_date = datetime.now() # Or use a date from request
+#         # Update stock level
+#         inventory.StockLevel += quantity_added_float
+#         inventory.last_update = datetime.now()
+#         # Optionally update last_purchase_date if applicable and data is provided
+#         # if vendor_id:
+#         #    inventory.VendorID = vendor_id # Update vendor if provided
+#         #    inventory.last_purchase_date = datetime.now() # Or use a date from request
 
+#         db.session.commit()
+
+#         return jsonify({
+#             "message": f"Successfully added {quantity_added_float} units to item ID {item_id_int}. New stock level: {inventory.StockLevel}",
+#             "item": inventory.to_dict() # Return updated inventory item
+#         })
+
+#     except Exception as e:
+#         db.session.rollback()
+#         # app.logger.error(f"Error recording stock in for item {item_id}: {str(e)}", exc_info=True)
+#         return jsonify({"error": f"An internal server error occurred: {str(e)}"}), 500
+@inventory_api.route('/stock_in', methods=['POST'])
+def stock_in():
+    data = request.get_json() or {}
+    item_id = data.get('item_id')
+    qty     = data.get('quantity_added', 0)
+    vendor_id = data.get('vendor_id')
+
+    try:
+        # 1) 更新库存
+        inv = Inventory.query.filter_by(ItemID=item_id).first()
+        if not inv:
+            inv = Inventory(ItemID=item_id, StockLevel=0)
+            db.session.add(inv)
+            db.session.flush()  # 确保 inv.InventoryID 可用
+        inv.StockLevel += qty
+        inv.VendorID = vendor_id
+        inv.last_purchase_date = datetime.utcnow()
+
+        # 2) 同时把这次入库写到 buy_list 表
+        buy_entry = BuyList(
+            ItemID=item_id,
+            InventoryQuantity=qty,
+            VendorID=vendor_id
+        )
+        db.session.add(buy_entry)
+
+        # 3) 一次性提交
         db.session.commit()
-
-        return jsonify({
-            "message": f"Successfully added {quantity_added_float} units to item ID {item_id_int}. New stock level: {inventory.StockLevel}",
-            "item": inventory.to_dict() # Return updated inventory item
-        })
+        return jsonify(inv.to_dict()), 201
 
     except Exception as e:
         db.session.rollback()
-        # app.logger.error(f"Error recording stock in for item {item_id}: {str(e)}", exc_info=True)
-        return jsonify({"error": f"An internal server error occurred: {str(e)}"}), 500
-
+        return jsonify({"error": str(e)}), 500
 # API to get all vendors (used for inventory dropdown)
 @inventory_api.route('/vendor')
 def get_inventory_vendors():
